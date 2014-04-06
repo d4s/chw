@@ -1,35 +1,43 @@
 /*
  * =====================================================================================
- *       Filename:  haffman.c
+ *       Filename:  huffman.c
  *    Description:  
  *         Author:  Denis Pynkin (d4s), denis.pynkin@t-linux.by
  *        Company:  t-linux.by
  * ===================================================================================== */
 
-#include <stdio.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <string.h>
+#include <htree.h>
 
 #include <time.h>
-#include <assert.h>
+#include <string.h>
 
-#define DICTSIZE 256
+
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
+#define DICTSIZE 256 /**< count of elements in dictionary */
+#define DICTWORD uint8_t /**< size of one element */
 #define BUFFERSIZE 1024
 
 int main( int argc, char **argv) {
 
-	uint32_t dictionary[DICTSIZE];
+	hnode_t dictionary[DICTSIZE];
 	uint8_t buffer[BUFFERSIZE];
 
+	/* for return codes */
 	int rc;
 	void *rcpnt;
 
-	int totalsymbols;
+	int totalsymbols=0;
 
+	hnode_t *tree_head=NULL;
 
-	rcpnt = memset (dictionary, 0, DICTSIZE * sizeof (uint32_t));
+	rcpnt = memset (dictionary, 0, DICTSIZE * sizeof (hnode_t));
 	assert (rcpnt != NULL);
+
+	for (int i=0; i<DICTSIZE; i++)
+		dictionary[i].code = i;
 
 
 	/** Read and count symbols */
@@ -41,19 +49,24 @@ int main( int argc, char **argv) {
 		if (readed <= 0)
 			break;
 
+#pragma omp  
 		/** count readed symbols */
 		for (int cnt=0; (cnt < BUFFERSIZE) && (cnt < readed); cnt++) {
-			dictionary[buffer[cnt]] += 1;
+			dictionary[buffer[cnt]].freq += 1;
 		}
 
 	}
 
+	// Create Huffman tree from collected info
+	tree_head = htree_create(dictionary, DICTSIZE);
+	assert(tree_head != NULL);
+	htree_destroy(tree_head);
 
 
 	/** Print statistics */
 	for (int i = 0; i<DICTSIZE; i++)
-		if (dictionary[i]) {
-			printf("Symbol %.3d = %lu\n", i, dictionary[i]);
+		if (dictionary[i].freq) {
+			printf("Symbol %.3d = %lu\n", dictionary[i].code, dictionary[i].freq);
 			totalsymbols++;
 		}
 
