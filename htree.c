@@ -7,6 +7,7 @@
  * ===================================================================================== */
 
 #include <htree.h>
+#include <pqueue.h>
 
 /**
  * @brief Create node structure
@@ -53,74 +54,176 @@ int hnode_destroy( hnode_t * node) {
 	return 0;	
 }
 
-
+#if 0
+/* TODO: version without priority queues */
 hnode_t *htree_add_node( hnode_t *head, hnode_t *node) {
-
-	static hnode_t *current;
-	static int rc;
 
 	if (node == NULL)
 		return head;
 
+	printf("     Adding %d = %d\n", node->code, node->freq);
+
 	node->up = NULL;
 	node->left = NULL;
 	node->right = NULL;
+	node->type = LEAF;
 
-	if (head == NULL)
-		return node;
 
-	current = head;
-#if 0
-	while (1) {
-		 if ((current->left == NULL) && (current->right == NULL)) {
+	if (head == NULL) {
+		head = hnode_create( 0, 0);
+		assert( head != NULL);
+		head->type = NODE;
+		head->freq = node->freq;
+		head->left = node;
 
-		 }
-		 rc = current->code - node->code;
+		node->up = head;
 
-		 if ((rc == 0) && (current->left == NULL) && (current->right == NULL) /* Do not add  */
-			 break;
-
-		 if (rc > 0) {
-			 if (current->
-		 }
-
+		return head;
 	}
-#endif
+
+	while (1) {
+
+		if (head->type == NODE){
+			/* NODE type */
+			printf("         node %d = %d\n", head->code, head->freq);
+			head->freq += node->freq;
+
+			if (head->left == NULL) {
+				printf("			adding to left  node %d = %d\n", head->code, head->freq);
+				head->left = node;
+				node->up = head;
+				break;
+			}
+	
+			if (head->right == NULL) {
+				printf("			adding to right node %d = %d\n", head->code, head->freq);
+				head->right = node;
+				node->up = head;
+				break;
+			}
+
+/*  			if ( head->->freq > head->freq) {
+				head = head->left;
+				printf("			going left to node %d = %d\n", head->code, head->freq);
+			} else {
+*/
+				head = head->right;
+				printf("			going right to node %d = %d\n", head->code, head->freq);
+//			}
+
+		} else {
+			printf("         current %d = %d\n", head->code, head->freq);
+			static hnode_t *new_node; 	
+			/* Insert new_node empty node */
+			new_node = hnode_create( 0, 0);
+			assert( new_node != NULL);
+
+			new_node->up = head->up;
+			new_node->type = NODE;
+			new_node->freq = head->freq;
+			new_node->left = head;
+
+			if ( head->up != NULL) {
+				if (head->up->left == head) {
+					head->up->left = new_node;
+				} else {
+					head->up->right = new_node;
+				}
+			}
+
+			head->up = new_node;
+
+			printf("         leaf up       %d = %d\n", head->up->code, head->up->freq);
+//			printf("         leaf up left  %d = %d\n", head->up->left->code, head->up->left->freq);
+//			printf("         leaf up right %d = %d\n", head->up->right->code, head->up->right->freq);
+
+
+			head = new_node;
+		}
+	} // while NODE	
+
+	printf("	HEAD now:  %d = %d\n", head->code, head->freq);
+	while (head->up != NULL)
+		head = head->up;
 
 	return head;
 }
+#endif
 
+static int hnode_cmp( const void *first, const void *second) {
 
-static int hnode_cmp( const hnode_t *first, const hnode_t *second) {
-	return  (first->freq - second->freq);
+	static hnode_t ** s1, **s2;
+
+	s1 = (hnode_t **)first;
+	s2 = (hnode_t **)second;
+
+	if ( *s1 == *s2)
+		return 0;
+	if ( *s1 == NULL)
+		return 1;
+	if ( *s2 == NULL)
+		return -1;
+
+	return  ((*s2)->freq - (*s1)->freq);
 }
 
-int htree_buffer_sort( hnode_t *table, uint32_t table_size) {
+int htree_buffer_sort( hnode_t **table, uint32_t table_size) {
 
-	qsort( table, (size_t) table_size, sizeof(hnode_t), hnode_cmp);
+	qsort( table, (size_t) table_size, sizeof(hnode_t*), hnode_cmp);
+	return 0;
 }
 
 
 /*  */
-hnode_t *htree_create( hnode_t *table, uint32_t table_size) {
+hnode_t *htree_create( hnode_t **table, uint32_t table_size) {
 
 	hnode_t *head=NULL;
+	pqnode_t *pqhead=NULL;
 
 	assert( table != NULL);
+	assert( table_size != 0);
+
+#if 0
+	/* TODO: used sorting before adding just for fun */
+	/* drop empty entries from initial set */
+	for (int i=0; i<table_size; i++) {
+		if ( table[i] == NULL) {
+			do {
+				table_size--;
+				if (table[table_size] != NULL)
+					break;
+			} while (table_size>i);
+			table[i]=table[table_size];
+			table[table_size] = NULL;
+		}
+	}
 
 
-	/* TODO: drop empty from initial set */
 	htree_buffer_sort( table, table_size);
+#endif
 
+	/* Create prioritized queue */
 	for (int i=0; i<table_size; i++) {
 	
-		if (table[i].freq == 0)
+		if (table[i] == NULL)
 			continue;
 
-		head = htree_add_node( head, &table[i]);
-		assert(head != NULL);
+		pqnode_t *pqnode = pqueue_create_node(table[i]);
+		assert(pqnode != NULL);
 
+		pqhead = pqueue_add_node( pqhead, pqnode);
+		assert(pqhead != NULL);
+/*
+		printf("###  Huffman tree:\n");
+		htree_print( head, 0);
+*/
 	}
+
+	pqueue_print(pqhead);
+
+
+	pqueue_destroy(pqhead);
+
 
 	return head;
 }
@@ -129,5 +232,23 @@ int htree_destroy(hnode_t *head) {
 
 
 	return 0;
+}
+
+void htree_print(const hnode_t *node, int level) {
+
+	if ((node->left == NULL) && (node->right == NULL)) {
+		printf("(%d) Leaf with code=%.3d and frequency=%u\n", level, node->code, node->freq);
+	} else {
+		printf("(%d) Node with weight=%u\n", level, node->freq);
+	}
+
+	level++;
+
+	if (node->left != NULL)
+		htree_print(node->left, level);
+
+	if (node->right != NULL)
+		htree_print(node->right, level);
+
 }
 

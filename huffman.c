@@ -17,12 +17,11 @@
 #endif
 
 #define DICTSIZE 256 /**< count of elements in dictionary */
-#define DICTWORD uint8_t /**< size of one element */
 #define BUFFERSIZE 1024
 
 int main( int argc, char **argv) {
 
-	hnode_t dictionary[DICTSIZE];
+	hnode_t **dictionary; // array of pointers to hnode_t elements
 	uint8_t buffer[BUFFERSIZE];
 
 	/* for return codes */
@@ -33,11 +32,13 @@ int main( int argc, char **argv) {
 
 	hnode_t *tree_head=NULL;
 
-	rcpnt = memset (dictionary, 0, DICTSIZE * sizeof (hnode_t));
+	/* Create memory region for dictionary */
+	dictionary = malloc( DICTSIZE * sizeof( hnode_t *));
+	assert( dictionary != NULL);
+
+	rcpnt = memset (dictionary, 0, DICTSIZE * sizeof (hnode_t *));
 	assert (rcpnt != NULL);
 
-	for (int i=0; i<DICTSIZE; i++)
-		dictionary[i].code = i;
 
 
 	/** Read and count symbols */
@@ -52,7 +53,10 @@ int main( int argc, char **argv) {
 #pragma omp  
 		/** count readed symbols */
 		for (int cnt=0; (cnt < BUFFERSIZE) && (cnt < readed); cnt++) {
-			dictionary[buffer[cnt]].freq += 1;
+			uint8_t code = buffer[cnt];
+			if( dictionary[code] == NULL)
+				dictionary[code] = hnode_create( 0, code);
+			dictionary[code]->freq += 1;
 		}
 
 	}
@@ -65,8 +69,8 @@ int main( int argc, char **argv) {
 
 	/** Print statistics */
 	for (int i = 0; i<DICTSIZE; i++)
-		if (dictionary[i].freq) {
-			printf("Symbol %.3d = %lu\n", dictionary[i].code, dictionary[i].freq);
+		if (dictionary[i] != NULL) {
+			printf("Symbol@%lp %.3d = %lu\n", (dictionary+i),  dictionary[i]->code, dictionary[i]->freq);
 			totalsymbols++;
 		}
 

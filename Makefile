@@ -1,7 +1,7 @@
 
-CFLAGS += -I. -std=c99
+CFLAGS += -I. -std=c99 -g
 
-OBJS = huffman.o htree.o
+OBJS = huffman.o htree.o pqueue.o
 
 # OpenMP
 CFLAGS += -fopenmp -DOPENMP
