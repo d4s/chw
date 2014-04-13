@@ -53,17 +53,27 @@ pqnode_t *pqueue_add_node( pqnode_t *head, pqnode_t *node);
 pqnode_t *pqueue_del_node( pqnode_t *head, uint32_t id);
 
 /** 
- * @brief Delete node from priority queue
+ * @brief Destroy priority queue
  *
- * Delete queue and cleanup all resources.
- * Data associated with nodes will be left as is.
- * If needed to cleanup data -- remove it before function call. 
+ * Delete all nodes from queue
  *
  * @param[in] head -- pointer to head of queue.
- * @param[in] node -- node to be removed from queue
  *
- * @returns pointer to the head of priority queue. NULL if queue is empty.
+ * @returns Nothing
 */
 void pqueue_destroy( pqnode_t *head);
+
+/** 
+ * @brief Print priority queue
+ *
+ * Print queue
+ *
+ * @param[in] head -- pointer to head of queue.
+ *
+ * @returns Nothing
+*/
+void pqueue_print( pqnode_t *head);
+
+
 #endif
 

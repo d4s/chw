@@ -150,6 +150,53 @@ hnode_t *htree_add_node( hnode_t *head, hnode_t *node) {
 }
 #endif
 
+/**
+ * @brief add node to head
+ *
+ * Version for working with prioritized queues
+ * expected to work with only 1-level!!!
+ *
+ * @param head High-level node, NULL means a new high-level node will be created
+ * @param node Low-level node to be added to High-level
+ *
+ * @returns High-level node 
+*/
+hnode_t *htree_add_node( hnode_t *head, hnode_t *node) {
+
+	if (node == NULL)
+		return head;
+
+	printf("     Adding %d = %d\n", node->code, node->freq);
+
+	node->up = NULL;
+//	node->left = NULL;
+//	node->right = NULL;
+
+
+	if (head == NULL) {
+		head = hnode_create( 0, 0);
+		assert( head != NULL);
+	}
+
+
+	if (head->right == NULL) {
+		printf("			adding to right node %d = %d\n", head->code, head->freq);
+		head->right = node;
+	} else if (head->left == NULL) {
+		printf("			adding to left  node %d = %d\n", head->code, head->freq);
+		head->left = node;
+	} else {
+		/* Something goes wrong. WTF??? */
+		assert(0);
+	}
+
+	head->freq += node->freq;
+
+	node->up = head;
+	return head;
+}
+
+
 static int hnode_cmp( const void *first, const void *second) {
 
 	static hnode_t ** s1, **s2;
@@ -213,17 +260,45 @@ hnode_t *htree_create( hnode_t **table, uint32_t table_size) {
 
 		pqhead = pqueue_add_node( pqhead, pqnode);
 		assert(pqhead != NULL);
-/*
-		printf("###  Huffman tree:\n");
-		htree_print( head, 0);
-*/
+	
 	}
 
+	// pqueue_print(pqhead);
+
+
+	while (1) {
 	pqueue_print(pqhead);
+		hnode_t *hnode_new;
+		pqnode_t *pqnode_new;;
+		
+		/* Pop the 1-st */
+		hnode_new = htree_add_node( NULL, pqhead->hnode);
+		assert( hnode_new != NULL);
+
+		head = hnode_new;
+
+		pqhead = pqueue_del_node( pqhead, 0);
+		if (pqhead == NULL)
+			break;
 
 
-	pqueue_destroy(pqhead);
+		/* Pop the 2-nd */
+		hnode_new = htree_add_node( hnode_new, pqhead->hnode);
+		assert( hnode_new != NULL);
 
+		pqhead = pqueue_del_node( pqhead, 0);
+		if (pqhead == NULL)
+			break;
+
+		pqnode_new = pqueue_create_node( hnode_new);
+		assert(pqnode_new != NULL);
+		
+		pqhead = pqueue_add_node( pqhead, pqnode_new);
+	}
+
+	printf("###  Huffman tree:\n");
+	htree_print( head, 0);
+	
 
 	return head;
 }
@@ -235,6 +310,9 @@ int htree_destroy(hnode_t *head) {
 }
 
 void htree_print(const hnode_t *node, int level) {
+
+	if (node == NULL)
+		return;
 
 	if ((node->left == NULL) && (node->right == NULL)) {
 		printf("(%d) Leaf with code=%.3d and frequency=%u\n", level, node->code, node->freq);

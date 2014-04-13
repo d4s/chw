@@ -55,18 +55,31 @@ pqnode_t *pqueue_add_node( pqnode_t *head, pqnode_t *node) {
 
 	current = head;
 
-	while (current->next != NULL) {
+	while (current->hnode->freq < node->hnode->freq) {
+		
 		if (current->hnode == NULL)
-			return head; /* 3-rd party force from outer space was here??? */
-		if (current->hnode->freq < node->hnode->freq)
-			current = current->next;
-		else
+			return head; /* 3-rd party force from outer space was here??? */		
+		
+		if ( current->next == NULL)
 			break;
+
+		current = current->next;
 	} 
 
 	node->prev = current->prev;
 	node->next = current;
 	current->prev = node;
+	
+	/* border case */
+	if (current->next == NULL) {
+		   	if (current->hnode->freq < node->hnode->freq) {
+				node->next = NULL;
+				node->prev = current;
+				current->next = node;
+				current->prev = node->prev;
+
+			}
+	}
 
 	if (node->prev == NULL)
 		head = node;
@@ -113,14 +126,11 @@ pqnode_t *pqueue_del_node( pqnode_t *head, uint32_t id) {
 }
 
 /** 
- * @brief Delete node from priority queue
+ * @brief Destroy priority queue
  *
- * Delete queue and cleanup all resources.
- * Data associated with nodes will be left as is.
- * If needed to cleanup data -- remove it before function call. 
+ * Delete all nodes from queue
  *
  * @param[in] head -- pointer to head of queue.
- * @param[in] node -- node to be removed from queue
  *
  * @returns Nothing
 */
