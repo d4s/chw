@@ -15,6 +15,8 @@
 
 #include <string.h>
 
+#include <hpb.pb-c.h>
+
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -24,7 +26,7 @@
 	{ fprintf(stderr, "%s:%d %s(): ", __FILE__, __LINE__, __func__ ); \
 	  fprintf(stderr, __VA_ARGS__); }
 #else
-#define DBGPRINT(fmt,  args...)
+#define DBGPRINT(...)
 #endif
 
 #endif
