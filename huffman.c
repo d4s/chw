@@ -1,10 +1,10 @@
 /*
- * =====================================================================================
- *       Filename:  huffman.c
- *    Description:  
- *         Author:  Denis Pynkin (d4s), denis.pynkin@t-linux.by
- *        Company:  t-linux.by
- * ===================================================================================== */
+ * @file   huffman.c
+ * @Author Denis Pynkin (d4s), denis.pynkin@t-linux.by
+ * @date   2014
+ * @brief  Huffman archiver
+*/
+
 
 #include <huffman.h>
 #include <htree.h>

@@ -1,11 +1,9 @@
 /*
- * =====================================================================================
- *       Filename:  pqueue.c
- *    Description:  
- *         Author:  Denis Pynkin (d4s), denis.pynkin@t-linux.by
- *        Company:  t-linux.by
- * ===================================================================================== */
-
+ * @file   pqueue.c
+ * @Author Denis Pynkin (d4s), denis.pynkin@t-linux.by
+ * @date   2014
+ * @brief  Priority queue
+*/
 
 #include <pqueue.h>
 
