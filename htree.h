@@ -1,9 +1,11 @@
-/* =====================================================================================
- *       Filename:  htree.h
- *    Description:  Huffman tree
- *         Author:  Denis Pynkin (d4s), denis.pynkin@t-linux.by
- *        Company:  t-linux.by
- * ===================================================================================== */
+/*
+ * @file   htree.h
+ * @Author Denis Pynkin (d4s), denis.pynkin@t-linux.by
+ * @date   2014
+ * @brief  Huffman tree
+ *
+ * Huffman tree
+*/
 
 #ifndef HTREE_H
 #define HTREE_H
@@ -11,23 +13,17 @@
 #include <huffman.h>
 #include <assert.h>
 
-
-typedef enum {
-	LEAF=0, 
-	NODE
-} hnode_type;
-
 /**
- * Huffman tree node description  */
+ * @brief Huffman tree node description
+*/
 struct hnode {
-	uint32_t freq;   /**< frequency */
-	uint8_t  code;   /**< code of symbol */
-	uint32_t bits;    /**< binary representation */
+	uint32_t freq; /**< frequency -- how often symbol appered in buffer */
+	uint8_t  code; /**< code of symbol */
+	uint32_t bits; /**< binary representation */
 	uint32_t blen; /**< count of bits in  binary representation */
-	hnode_type type;
-	struct hnode *up;
-	struct hnode *left;
-	struct hnode *right;
+	struct hnode *up; /**< pointer to upper level */
+	struct hnode *left; /**< pointer to left child */
+	struct hnode *right; /**< pointer to right child */
 };
 
 typedef struct hnode hnode_t;

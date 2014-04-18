@@ -1,9 +1,9 @@
-/* =====================================================================================
- *       Filename:  pqueue.h
- *    Description:  Priority queue
- *         Author:  Denis Pynkin (d4s), denis.pynkin@t-linux.by
- *        Company:  t-linux.by
- * ===================================================================================== */
+/*
+ * @file   pqueue.h
+ * @Author Denis Pynkin (d4s), denis.pynkin@t-linux.by
+ * @date   2014
+ * @brief  Priority queue
+*/
 
 #ifndef PQUEUE_H
 #define PQUEUE_H
@@ -11,10 +11,13 @@
 #include <huffman.h>
 #include <htree.h>
 
+/**
+ * @brief Double linked queue node
+*/
 typedef struct pqnode {
-	struct pqnode *prev;
-	struct pqnode *next;
-	hnode_t *hnode;
+	struct pqnode *prev; /**< pointer to previous node */
+	struct pqnode *next; /**< pointer to next node */
+	hnode_t *hnode; /**< pointer to payload */
 } pqnode_t;
 
 

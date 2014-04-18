@@ -1,9 +1,9 @@
-/* =====================================================================================
- *       Filename:  huffman.h
- *    Description:  
- *         Author:  Denis Pynkin (d4s), denis.pynkin@t-linux.by
- *        Company:  t-linux.by
- * ===================================================================================== */
+/*
+ * @file   huffman.h
+ * @Author Denis Pynkin (d4s), denis.pynkin@t-linux.by
+ * @date   2014
+ * @brief  Commons for project
+*/
 
 #ifndef HUFFMAN_H
 #define HUFFMAN_H
