@@ -6,6 +6,9 @@ OBJS = huffman.o htree.o pqueue.o
 # OpenMP
 CFLAGS += -fopenmp -DOPENMP
 
+# Debug
+CFLAGS += -DDEBUG
+
 all: huffman
 
 

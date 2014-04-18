@@ -6,15 +6,11 @@
  *        Company:  t-linux.by
  * ===================================================================================== */
 
+#include <huffman.h>
 #include <htree.h>
 
 #include <time.h>
-#include <string.h>
 
-
-#ifdef OPENMP
-#include <omp.h>
-#endif
 
 #define DICTSIZE 256 /**< count of elements in dictionary */
 #define BUFFERSIZE 1024
@@ -50,7 +46,6 @@ int main( int argc, char **argv) {
 		if (readed <= 0)
 			break;
 
-#pragma omp  
 		/** count readed symbols */
 		for (int cnt=0; (cnt < BUFFERSIZE) && (cnt < readed); cnt++) {
 			uint8_t code = buffer[cnt];
@@ -61,20 +56,22 @@ int main( int argc, char **argv) {
 
 	}
 
+#ifdef DEBUG
+	/** Print statistics */
+	for (int i = 0; i<DICTSIZE; i++)
+		if (dictionary[i] != NULL) {
+			DBGPRINT("Symbol@%lp %.3d = %lu\n", (dictionary+i),  dictionary[i]->code, dictionary[i]->freq);
+			totalsymbols++;
+		}
+#endif
+
 	// Create Huffman tree from collected info
 	tree_head = htree_create(dictionary, DICTSIZE);
 	assert(tree_head != NULL);
 	htree_destroy(tree_head);
 
 
-	/** Print statistics */
-	for (int i = 0; i<DICTSIZE; i++)
-		if (dictionary[i] != NULL) {
-			printf("Symbol@%lp %.3d = %lu\n", (dictionary+i),  dictionary[i]->code, dictionary[i]->freq);
-			totalsymbols++;
-		}
-
-	printf("Used symbols = %lu\n", totalsymbols);
+	DBGPRINT("Used symbols = %lu\n", totalsymbols);
 
 	return 0;
 }

@@ -8,6 +8,7 @@
 #ifndef PQUEUE_H
 #define PQUEUE_H
 
+#include <huffman.h>
 #include <htree.h>
 
 typedef struct pqnode {
