@@ -20,7 +20,7 @@ typedef enum {
 /**
  * Huffman tree node description  */
 struct hnode {
-	uint32_t freq;   /**< frequency */;
+	uint32_t freq;   /**< frequency */
 	uint8_t  code;   /**< code of symbol */
 	uint32_t bits;    /**< binary representation */
 	uint32_t blen; /**< count of bits in  binary representation */
@@ -66,10 +66,10 @@ hnode_t *htree_create(hnode_t **table, uint32_t table_size);
  *
  * @param head Pointer to huffman tree head
  *
- * @returns Zero on success, non-zero if problem detected. 
+ * @returns Nothing
  * 
 */
-int htree_destroy(hnode_t *head);
+void htree_destroy(hnode_t *head);
 
 /**
  * @brief Calculate bits 

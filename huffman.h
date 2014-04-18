@@ -20,9 +20,9 @@
 #endif
 
 #ifdef DEBUG
-#define DBGPRINT(fmt, args...) \
+#define DBGPRINT(...) \
 	{ fprintf(stderr, "%s:%d %s(): ", __FILE__, __LINE__, __func__ ); \
-	  fprintf(stderr, fmt, ##args); }
+	  fprintf(stderr, __VA_ARGS__); }
 #else
 #define DBGPRINT(fmt,  args...)
 #endif

@@ -20,8 +20,6 @@ int main( int argc, char **argv) {
 	hnode_t **dictionary; // array of pointers to hnode_t elements
 	uint8_t buffer[BUFFERSIZE];
 
-	/* for return codes */
-	int rc;
 
 	int totalsymbols=0;
 
@@ -34,7 +32,7 @@ int main( int argc, char **argv) {
 
 	/** Read and count symbols */
 	while (1) {
-	
+		/* for return codes */
 		void *rcpnt;
 		rcpnt = memset (dictionary, 0, DICTSIZE * sizeof (hnode_t *));
 		assert (rcpnt != NULL);
@@ -68,7 +66,7 @@ int main( int argc, char **argv) {
 		
 		htree_destroy(tree_head);
 
-		DBGPRINT("Used symbols = %lu\n", totalsymbols);
+		DBGPRINT("Used symbols = %u\n", totalsymbols);
 
 	}
 

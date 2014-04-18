@@ -307,10 +307,10 @@ hnode_t *htree_create( hnode_t **table, uint32_t table_size) {
 	return head;
 }
 
-int htree_destroy(hnode_t *node) {
+void htree_destroy(hnode_t *node) {
 
 	if (node == NULL)
-		return 0;
+		return;
 
 	if (node->left != NULL) {
 		htree_destroy(node->left);
