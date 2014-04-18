@@ -1,6 +1,7 @@
 *~
 *.o
 *.swp
+*.pb-c.[ch]
 tags
-haffman
+huffman
 
