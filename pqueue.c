@@ -45,19 +45,22 @@ pqnode_t *pqueue_add_node( pqnode_t *head, pqnode_t *node) {
 	
 	pqnode_t *current;
 
-	if (head == NULL)
+	if (head == NULL) {
+		DBGPRINT("New queue created\n");
 		return node;
+	}
 
 	if (node == NULL)
 		return head;
 
 	assert( node->hnode != NULL);
 
+//	DBGPRINT("adding node %d with frequency %d to queue\n", node->hnode->code, node->hnode->freq);
 	current = head;
 
 	while (current->hnode->freq < node->hnode->freq) {
 		
-		if (current->hnode == NULL)
+		if ( current->hnode == NULL)
 			return head; /* 3-rd party force from outer space was here??? */		
 		
 		if ( current->next == NULL)
@@ -66,25 +69,30 @@ pqnode_t *pqueue_add_node( pqnode_t *head, pqnode_t *node) {
 		current = current->next;
 	} 
 
-	node->prev = current->prev;
-	node->next = current;
-	current->prev = node;
-	
+	if (current->hnode->freq >= node->hnode->freq) {
+		node->prev = current->prev;
+		node->next = current;
+		current->prev = node;
+	} else if (current->next == NULL) {
 	/* border case */
-	if (current->next == NULL) {
-		   	if (current->hnode->freq < node->hnode->freq) {
-				node->next = NULL;
-				node->prev = current;
-				current->next = node;
-				current->prev = node->prev;
-
-			}
+//		DBGPRINT("adding node to the tail\n");
+		node->next = NULL;
+		node->prev = current;
+		current->next = node;
+	} else {
+		DBGPRINT("Shouldn't happen\n");
+		return head;
 	}
 
-	if (node->prev == NULL)
+
+	if (node->prev == NULL) {
+//		DBGPRINT("adding node to the head\n");
 		head = node;
-	else
+	}
+	else {
+//		DBGPRINT("previous node %d with freq %d\n", node->prev->hnode->code, node->prev->hnode->freq);
 		node->prev->next = node;
+	}
 
 	return head;
 }
@@ -158,10 +166,11 @@ void pqueue_print( pqnode_t *head) {
 		return;
 
 	do {
-		if (head->hnode != NULL)
+		if (head->hnode != NULL) {
 			printf("(%d) node %.3d with frequency %u\n", i, head->hnode->code, head->hnode->freq);
-		else
+		} else {
 			printf("Node without payload!!!\n");
+		}
 
 		i++;
 		head = head->next;

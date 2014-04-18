@@ -72,17 +72,33 @@ hnode_t *htree_create(hnode_t **table, uint32_t table_size);
 int htree_destroy(hnode_t *head);
 
 /**
+ * @brief Calculate bits 
+ *
+ * Recursive walk through huffman tree and calculate 
+ * codes for corresponding leaf 
+ *
+ * @param head Pointer to huffman tree head
+ * @param level Current depth 
+ * @param hcode Huffman code from previous level
+ *
+ * @returns Calculated size of compressed data
+ * 
+*/
+uint32_t htree_add_codes(hnode_t *head, int level, uint32_t hcode);
+
+
+/**
  * @brief Print huffman tree
  *
  * Recursive walk through huffman tree
  *
  * @param head Pointer to huffman tree head
+ * @param level Current depth 
  *
  * @returns Nothing
  * 
 */
-
-void htree_print(const hnode_t *node, int level);
+void htree_print(const hnode_t *head, int level);
 
 #endif /* HTREE_H */
 

@@ -29,10 +29,10 @@ hnode_t *hnode_create( uint32_t frequency, uint8_t code) {
 	if (node == NULL)
 	   return NULL;	
 
-	DBGPRINT("Node %d created\n", code);
-
 	node->freq = frequency;
 	node->code = code;
+	node->bits = 0;
+	node->blen = 0;
 	node->up = NULL;
 	node->left = NULL;
 	node->right = NULL;
@@ -169,7 +169,7 @@ hnode_t *htree_add_node( hnode_t *head, hnode_t *node) {
 	if (node == NULL)
 		return head;
 
-	DBGPRINT("Adding %d = %d\n", node->code, node->freq);
+//	DBGPRINT("Adding %d = %d\n", node->code, node->freq);
 
 	node->up = NULL;
 //	node->left = NULL;
@@ -183,10 +183,10 @@ hnode_t *htree_add_node( hnode_t *head, hnode_t *node) {
 
 
 	if (head->right == NULL) {
-		DBGPRINT("adding to right node %d = %d\n", head->code, head->freq);
+//		DBGPRINT("adding to right node %d = %d\n", head->code, head->freq);
 		head->right = node;
 	} else if (head->left == NULL) {
-		DBGPRINT("adding to left  node %d = %d\n", head->code, head->freq);
+//		DBGPRINT("adding to left  node %d = %d\n", head->code, head->freq);
 		head->left = node;
 	} else {
 		/* Something goes wrong. WTF??? */
@@ -253,12 +253,11 @@ hnode_t *htree_create( hnode_t **table, uint32_t table_size) {
 	htree_buffer_sort( table, table_size);
 #endif
 
-	DBGPRINT("PQueue creation start with %d table\n", table_size);
+//	DBGPRINT("PQueue creation start with %d table\n", table_size);
 	/* Create prioritized queue */
 	for (int i=0; i<table_size; i++) {
 	
 		if (table[i] == NULL){
-			DBGPRINT("%d item == NULL\n", i);
 			continue;
 		}
 
@@ -271,8 +270,8 @@ hnode_t *htree_create( hnode_t **table, uint32_t table_size) {
 	}
 
 #ifdef DEBUG
-	DBGPRINT("PQueue creation finished\n");
-	pqueue_print(pqhead);
+//	DBGPRINT("PQueue creation finished\n");
+//	pqueue_print(pqhead);
 #endif
 
 	while (1) {
@@ -305,18 +304,68 @@ hnode_t *htree_create( hnode_t **table, uint32_t table_size) {
 		pqhead = pqueue_add_node( pqhead, pqnode_new);
 	}
 
-	printf("###  Huffman tree:\n");
-	htree_print( head, 0);
-	
-
 	return head;
 }
 
-int htree_destroy(hnode_t *head) {
+int htree_destroy(hnode_t *node) {
 
+	if (node == NULL)
+		return 0;
 
-	return 0;
+	if (node->left != NULL) {
+		htree_destroy(node->left);
+	}
+
+	if (node->right != NULL) {
+		htree_destroy(node->right);
+	}
+
+	hnode_destroy(node);
 }
+
+/**
+ * @brief Calculate bits 
+ *
+ * Recursive walk through huffman tree and calculate 
+ * codes for corresponding leaf 
+ *
+ * @param head Pointer to huffman tree head
+ * @param level Current depth 
+ * @param hcode Huffman code from previous level
+ *
+ * @returns Calculated size of compressed data
+ * 
+*/
+uint32_t htree_add_codes(hnode_t *node, int level, uint32_t hcode) {
+
+	uint32_t coded_size = 0;
+
+	if (node == NULL)
+		return 0;
+
+	node->bits = hcode;
+	node->blen = level;
+
+	if ((node->left == NULL) && (node->right == NULL)) {
+		coded_size += node->freq * level;
+		return coded_size;
+	}
+
+	hcode <<= 1;
+	level++;
+
+	if (node->left != NULL) {
+		coded_size += htree_add_codes(node->left, level, hcode);
+	}
+
+	if (node->right != NULL) {
+		hcode |= 1;
+		coded_size += htree_add_codes(node->right, level, hcode);
+	}
+
+	return coded_size;
+}
+
 
 void htree_print(const hnode_t *node, int level) {
 
@@ -324,9 +373,10 @@ void htree_print(const hnode_t *node, int level) {
 		return;
 
 	if ((node->left == NULL) && (node->right == NULL)) {
-		printf("(%d) Leaf with code=%.3d and frequency=%u\n", level, node->code, node->freq);
+		printf("%d: Leaf with code=%.3d, frequency=%u, encoded 0x%.4X (%d)\n", level,
+			   	node->code, node->freq, node->bits, node->blen);
 	} else {
-		printf("(%d) Node with weight=%u\n", level, node->freq);
+		printf("%d: Node with weight=%u\n", level, node->freq);
 	}
 
 	level++;
