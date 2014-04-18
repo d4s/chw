@@ -1,0 +1,4 @@
+message hpb {
+    required uint32	bits = 1;
+    required bytes	payload = 2;
+}
