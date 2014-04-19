@@ -44,7 +44,6 @@ pqnode_t *pqueue_add_node( pqnode_t *head, pqnode_t *node) {
 	pqnode_t *current;
 
 	if (head == NULL) {
-		DBGPRINT("New queue created\n");
 		return node;
 	}
 

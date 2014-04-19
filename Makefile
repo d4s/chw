@@ -5,9 +5,10 @@ OBJS = huffman.o htree.o pqueue.o hpb.pb-c.o
 
 LIBS = -lprotobuf-c
 
-ifeq ($(openmp),enabled)
+ifneq ($(openmp),disabled)
 # OpenMP
 CFLAGS += -fopenmp
+LIBS += -lgomp
 endif
 
 ifeq ($(mode),release)
