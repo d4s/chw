@@ -1,7 +1,8 @@
 
 CFLAGS += -I. -std=gnu99 -Wall -pedantic
 
-OBJS = huffman.o htree.o pqueue.o hpb.pb-c.o
+SRCS = huffman.c htree.c pqueue.c hpb.pb-c.c
+OBJS = $(patsubst %.c,%.o,$(wildcard $(SRCS))) 
 
 LIBS = -lprotobuf-c
 
@@ -20,6 +21,17 @@ endif
 
 
 all: huffman
+
+hpb: hpbr hpbw
+
+hpbr: hpb.pb-c.o testpbread.o
+		$(CC) $(LDFLAGS) hpb.pb-c.o testpbread.o $(LIBS) -o $@ 
+		
+
+hpbw: hpb.pb-c.o testpbwrite.o
+		$(CC) $(LDFLAGS) hpb.pb-c.o testpbwrite.o $(LIBS) -o $@ 
+		
+
 
 .o: .c
 	$(CC) $(CFLAGS) -o $@ $<

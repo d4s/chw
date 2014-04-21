@@ -11,10 +11,6 @@
 
 #include <time.h>
 
-
-#define DICTSIZE 256 /**< count of elements in dictionary */
-#define BUFFERSIZE 64*1024
-
 int main( int argc, char **argv) {
 
 	hnode_t **dictionary; // array of pointers to hnode_t elements
@@ -76,7 +72,7 @@ int main( int argc, char **argv) {
 			}
 
 #ifdef _OPENMP
-#pragma omp for 
+#pragma omp for
 #endif
 			for (int cnt=0; cnt < DICTSIZE; cnt++) {
 #ifdef _OPENMP

@@ -21,6 +21,11 @@
 #include <omp.h>
 #endif
 
+
+#define DICTSIZE 256 /**< count of elements in dictionary */
+#define BUFFERSIZE 64*1024
+
+
 #ifdef DEBUG
 #define DBGPRINT(...) \
 	{ fprintf(stderr, "%s:%d %s(): ", __FILE__, __LINE__, __func__ ); \

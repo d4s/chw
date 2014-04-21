@@ -1,4 +1,20 @@
-message hpb {
-    required uint32	bits = 1;
-    required bytes	payload = 2;
+//package hpb;
+
+/*
+message hpb_symbol {
+    required uint32	symbol = 1;
+    required uint32	codelen = 2;
+    required uint32	code = 3;
 }
+*/
+
+message hpb {
+    required uint32	bits_len = 1;
+    required bytes	payload = 2;
+
+    repeated uint32	symbols_table = 3;
+    repeated uint32	codes_table = 4;
+    repeated uint32	lengths_table = 5;
+
+}
+
