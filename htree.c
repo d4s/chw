@@ -335,7 +335,7 @@ void htree_destroy(hnode_t *node) {
  * @param level Current depth 
  * @param hcode Huffman code from previous level
  *
- * @returns Calculated size of compressed data
+ * @returns Calculated size of compressed data in bits
  * 
 */
 uint32_t htree_add_codes(hnode_t *node, int level, uint32_t hcode) {

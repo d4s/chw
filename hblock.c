@@ -169,7 +169,7 @@ hblock_t *hblock_create( uint8_t *buffer, uint32_t size, hblock_state_t state ) 
 void hblock_destroy( hblock_t *block) {
 
 		if (block == NULL)
-			return NULL;
+			return;
 
 		hblock_set_state( block, PROCESSING);
 		if (block->raw != NULL)
@@ -204,17 +204,55 @@ int hblock_compress( hblock_t *block) {
 
 	hblock_set_state( block, PROCESSING);
 
-	block->raw = buffer;
-	block->raw_size = size;
-
 	/* Should not happen but who cares? */
 	if (block->zdata != NULL)
 		free( block->zdata);
 
 
-	
+	/* Create memory region for dictionary */
+	dictionary = malloc( DICTSIZE * sizeof( hnode_t *));
+	assert( dictionary != NULL);
 
 
+	/* Cleanup */
+	memset (dictionary, 0, DICTSIZE * sizeof (hnode_t *));
+
+	memset (histogram, 0, DICTSIZE*sizeof(uint32_t));
+
+	/* Get some statistics */
+	for (int cnt=0; cnt < block->raw_size; cnt++) {
+		histogram[block->raw[cnt]] += 1;
+	}
+
+	/* Create nodes */
+	for (int cnt=0; cnt < DICTSIZE; cnt++) {
+
+		uint32_t value = histogram[cnt];
+		if (value == 0)
+			continue;
+
+		if (dictionary[cnt] == NULL) 
+			dictionary[cnt] = hnode_create( 0, cnt);
+
+		dictionary[cnt]->freq = value;
+	}
+
+	/* Create Huffman tree from collected info */
+	block->head = htree_create(dictionary, DICTSIZE);
+	assert( block->head != NULL);
+
+	/* Do not need dictionary as far as we create tree */
+	free( dictionary);
+
+//	htree_print( block->head, 0);
+
+	/* Add codes to symbols and count compressed size */
+	block->zdata_size =  htree_add_codes( block->head, 0, 0);
+
+	DBGPRINT("buffer with %d b (%d B) symbols compressed to %d b (%d B):\n", 
+			block->raw_size * 8, block->raw_size, block->zdata_size, block->zdata_size%8?(1 + block->zdata_size/8):(block->zdata_size/8));
+		//htree_print( head, 0);
+		
 	hblock_set_state( block, READY);
 	return 0;
 
