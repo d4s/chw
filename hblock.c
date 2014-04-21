@@ -11,6 +11,46 @@
 #include <netinet/in.h>
 
 /**
+ * @brief Read raw data
+ *
+ * Function tries to fill buffer from stream
+ * return count of bytes in buffer
+ *
+ * @param fd File descriptor to read
+ * @param buffer Buffer for stream data
+ * @param buffer_size Size of buffer
+ *
+ * @return Bytes count in buffer, 0 in case EOF, -1 in case of error
+ */
+uint32_t rawreader ( int fd, uint8_t *buffer, size_t buffer_size) {
+	
+		ssize_t readed;
+
+		uint32_t size = 0;
+
+		assert( buffer != NULL);
+		assert( buffer_size >= 0);
+
+		while (1) {
+			readed = read (STDIN_FILENO, buffer+size, buffer_size - size);
+			if (readed <= 0)
+				break;
+
+			size += readed;
+			if (size >= buffer_size) {
+				if (size == buffer_size) {
+					/* Buffer full */
+					return size;
+				}
+				/* something going wrong here!!! */
+				return -1;
+			}
+		}
+		return size;
+}
+
+
+/**
  * @brief Read one message from stream
  *
  * Trying to read 1 message from stream in format:

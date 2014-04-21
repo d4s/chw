@@ -106,6 +106,21 @@ int hblock_compress( hblock_t *block);
 int hblock_decompress( hblock_t *block);
 
 /**
+ * @brief Read raw data
+ *
+ * Function tries to fill buffer from stream
+ * return count of bytes in buffer
+ *
+ * @param fd File descriptor to read
+ * @param buffer Buffer for stream data
+ * @param buffer_size Size of buffer
+ *
+ * @return Bytes count in buffer
+ */
+uint32_t rawreader ( int fd, uint8_t *buffer, size_t buffer_size);
+
+
+/**
  * @brief Read one message from stream
  *
  * Trying to read 1 message from stream in format:
@@ -114,8 +129,7 @@ int hblock_decompress( hblock_t *block);
  *
  * @param fd File descriptor to read
  * @param buffer Buffer for stream data
- * @param offset Size of buffer
- * @param out Pointer to unpacked message
+ * @param buffer_size Size of buffer
  *
  * @return Pointer to unpacked message or NULL
  */
