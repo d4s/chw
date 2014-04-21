@@ -15,92 +15,111 @@ typedef struct _Hpb hpb_t;
 #define TABLESIZE 10
 
 /**
+ * @brief Read one message from stream
+ *
+ * Trying to read 1 message from stream in format:
+ * uint32_t length of following message in network order
+ * hpb_t    data block in protocol buffer format
+ *
+ * @param fd File descriptor to read
+ * @param buffer Buffer for stream data
+ * @param offset Size of buffer
+ * @param out Pointer to unpacked message
+ *
+ * @return Pointer to unpacked message or NULL
+ */
+hpb_t * streamreader ( int fd, uint8_t *buffer, size_t buffer_size) {
+
+	hpb_t *msg;
+	static uint32_t msglen;
+	static size_t rd;
+	static uint32_t offset;
+
+	/* TODO: check params */
+
+	/* Read size of message */
+	offset = 0;
+	while (1) {
+
+		rd = read( fd, buffer+offset, sizeof(uint32_t)-offset);
+		if (rd <= 0) {
+			/* problems detected */
+			return NULL;
+		}
+		offset += rd;
+		if (( sizeof(uint32_t) - offset) <= 0 )
+			break;
+	}
+
+	msglen = ntohl(*(uint32_t *) buffer);
+
+	if (msglen > buffer_size) {
+		return NULL;
+	}
+
+	DBGPRINT("Trying to read message with size %u\n", msglen);
+
+	offset = 0;
+	while (1) {
+
+		rd = read( fd, buffer+offset, msglen-offset);
+
+		if (rd <= 0) {
+			/* problems detected */
+			return NULL;
+		}
+
+		offset += rd;
+		DBGPRINT("Bytes read %d, buffer space left %d\n", rd, buffer_size-offset);
+
+		if ( (msglen - offset) <= 0 )
+			break;
+	}
+
+	DBGPRINT("Message read %d\n", offset);
+	msg = hpb__unpack (NULL, offset, buffer);
+
+	if (msg == NULL) {
+		DBGPRINT("Error message detected\n", offset);
+		return NULL;
+	}
+		
+	/* Message parsed, hooray! */
+
+
+	DBGPRINT("Successful read of message %d\n", msgcnt);
+	return msg;
+}
+
+
+int msgcnt;
+/**
  * @brief 
  */
 int main() {
 	
-	hpb_t msg = HPB__INIT;
+	hpb_t *msg;
 
 	uint8_t *buffer;
 	ProtobufCBinaryData *payload;
 
-	buffer = malloc( BUFFERSIZE);
+	buffer = malloc(HPB_MESSAGE_MAX);
 	assert( buffer != NULL);
 
-	msg.symbols_table = malloc( TABLESIZE * sizeof(uint32_t ));
-	assert( msg.symbols_table != NULL);
-	msg.lengths_table = malloc( TABLESIZE * sizeof(uint32_t ));
-	assert( msg.lengths_table != NULL);
-	msg.codes_table = malloc( TABLESIZE * sizeof(uint32_t ));
-	assert( msg.codes_table != NULL);
 
-	/* Create simple structure */
+	int offset=0;
 
-
-	int msg_len = hpb__get_packed_size (&msg);
-//		uint8_t *msgbuf = malloc (msglen);
-//		hpb__pack (&msg, msgbuf);
-
-	DBGPRINT("Data packed to %d bytes\n", msg_len);
-
-	/** fill table of submessages */
-	for (int i=0; i<TABLESIZE; i++) {
-		msg.symbols_table[i] = i; 
-		msg.codes_table[i] = i;
-		msg.lengths_table[i] = i;
-	}
-
-	/* Create simple structure */
-	msg.bits_len = 1024;
-	msg.n_symbols_table = TABLESIZE;
-	msg.n_lengths_table = TABLESIZE;
-	msg.n_codes_table = TABLESIZE;
-
-	/** Checkaccess  */
-	for (int i=0; i<TABLESIZE; i++) {
-		DBGPRINT("Symbol = %u, code = %u, codelen = %u\n", 
-			msg.symbols_table[i], 
-			msg.codes_table[i],
-			msg.lengths_table[i]
-		);
-	}
-
-	/** Prepare payload structure */
-/* 	payload = malloc( sizeof(ProtobufCBinaryData));
-	assert( payload != NULL);
-
-	msg.payload = payload;
-*/
 	while (1) {
 
-		/* Read data from stream */
-		msg.payload.len = read (STDIN_FILENO, buffer, BUFFERSIZE);
-		if (msg.payload.len <= 0)
+		/* Read data from stream 
+		 * Need a huge buffer due message size could be more than buffer*/
+
+		msg = streamreader( STDIN_FILENO, buffer, HPB_MESSAGE_MAX);
+
+		if( msg == NULL)
 			break;
-		
- 		msg.payload.data = malloc( msg.payload.len);
-		assert( msg.payload.data != NULL);
-		memcpy( msg.payload.data, buffer, msg.payload.len);
-
-		DBGPRINT("Data count in block: %d\n", msg.payload.len);
-/** pack start  */
-		
-		int msglen = hpb__get_packed_size (&msg);
-		uint8_t *msgbuf = malloc (msglen);
-		hpb__pack (&msg, msgbuf);
-
-		DBGPRINT("Data packed to %d bytes\n", msglen);
-
-		write ( STDOUT_FILENO, msgbuf, msglen);
-		//hpb__free_unpacked( &msg, NULL);
-/** pack end */
-		free(msgbuf);
-		free(msg.payload.data);
 	
 	}
-	free(msg.symbols_table);
-	free(msg.lengths_table);
-	free(msg.codes_table);
 
 	free (buffer);
 	return 0;

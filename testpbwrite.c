@@ -90,7 +90,14 @@ int main() {
 
 		DBGPRINT("Data packed to %d bytes\n", msglen);
 
+		/* Use network byte order to save in stream */
+		uint32_t msglen_n = htonl( (uint32_t) msglen);
+
+		/* write size of message in networkk byte order */
+		write ( STDOUT_FILENO, &msglen_n, sizeof(uint32_t));
+		/* write body */
 		write ( STDOUT_FILENO, msgbuf, msglen);
+
 		//hpb__free_unpacked( &msg, NULL);
 /** pack end */
 		free(msgbuf);
