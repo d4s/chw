@@ -25,6 +25,7 @@
 #define DICTSIZE 256 /**< count of elements in dictionary */
 #define BUFFERSIZE 64*1024
 
+#define HPB_MESSAGE_MAX BUFFERSIZE*2 /**< to be sure we have enough space for read messages from stream */
 
 #ifdef DEBUG
 #define DBGPRINT(...) \
