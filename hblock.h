@@ -38,9 +38,9 @@ typedef enum hblock_state hblock_state_t;
 struct hblock {
 	hblock_state_t state;
 	uint8_t   * raw; /**< Raw (uncompressed data) */
-	uint32_t  raw_size; /**< Raw data size */
+	uint32_t  raw_size; /**< Raw data size in bytes */
 	uint8_t   * zdata; /**< Compressed data with Huffman's algorithm */
-	uint32_t  zdata_size; /**< Compressed data size */
+	uint32_t  zdata_size; /**< Compressed data size in bits */
 	hnode_t *head; /**< Pointer to head of Huffman tree */ 
 };
 

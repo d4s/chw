@@ -281,18 +281,59 @@ int hblock_compress( hblock_t *block) {
 	block->head = htree_create(dictionary, DICTSIZE);
 	assert( block->head != NULL);
 
-	/* Do not need dictionary as far as we create tree */
-	free( dictionary);
 
 //	htree_print( block->head, 0);
 
-	/* Add codes to symbols and count compressed size */
+	/* Add codes to symbols and count compressed size in bits */
 	block->zdata_size =  htree_add_codes( block->head, 0, 0);
 
+	block->zdata = malloc( block->zdata_size%8 ? (1 + block->zdata_size/8) : (block->zdata_size/8));
+	assert( block->zdata != NULL);
+
 	DBGPRINT("buffer with %d b (%d B) symbols compressed to %d b (%d B):\n", 
-			block->raw_size * 8, block->raw_size, block->zdata_size, block->zdata_size%8?(1 + block->zdata_size/8):(block->zdata_size/8));
+			block->raw_size * 8, block->raw_size, 
+			block->zdata_size, block->zdata_size%8?(1 + block->zdata_size/8):(block->zdata_size/8));
 		//htree_print( head, 0);
+	
+	/* Comression */
+	uint32_t bits = 0; /* bits collector */
+	uint32_t maskedbits; /* align data here for byte writing */
+	int shift = 0; 
+	uint32_t zpos=0; /* position in compressed buffer */	
+	for (int cnt=0; cnt < block->raw_size; cnt++) {
+		uint8_t code = block->raw[cnt];
+		uint32_t codebits = dictionary[code]->bits;
+		uint32_t codelen = dictionary[code]->blen;
 		
+		DBGPRINT("%d symbol %d -> code %d (%d)\n", cnt, code, codebits, codelen);
+
+		bits <<= codelen;
+		bits |= codebits;
+
+		shift += codelen;
+
+		while (shift > 7) {
+			maskedbits = bits;
+			shift -= 8;
+
+			maskedbits >>= shift;
+			block->zdata[zpos] = (uint8_t) maskedbits;
+			DBGPRINT("%d zpos: Added byte 0x%X\n", zpos, (uint8_t) maskedbits);
+			zpos++;
+		}
+
+	}
+	/* last bits should be added too */
+	DBGPRINT("rest: shift = %d, zpos = %d, bits = 0x%X\n", 
+			shift, zpos, bits);
+
+	if( shift != 0) {
+		bits <<= (8-shift);
+		block->zdata[zpos] = (uint8_t) bits;
+		DBGPRINT("%d zpos: Added byte 0x%X\n", zpos, (uint8_t) bits);
+	}
+	/* Do not need dictionary */
+	free( dictionary);
 	hblock_set_state( block, READY);
 	return 0;
 
