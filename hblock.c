@@ -59,7 +59,17 @@ uint32_t rawreader ( int fd, uint8_t *buffer, size_t buffer_size) {
  */
 uint32_t rawwriter( int fd, hblock_t *block) {
 
-	return 0;
+
+	assert( block != NULL);
+
+	if (block->raw == NULL)
+		return 0;
+
+	int rc = write( fd, block, block->raw_size);
+
+	DBGPRINT("Raw data %d bytes written\n", rc);
+
+	return rc;
 }
 
 
@@ -79,8 +89,10 @@ hblock_t *streamreader( int fd) {
 	assert( buffer != NULL);
 
 	hpb_t *hpb = hpb_reader( fd, buffer, HPB_MESSAGE_MAX);
-	if (hpb == NULL)
+	if (hpb == NULL) {
+		free( buffer);
 		return NULL;
+	}
 
 	
 	DBGPRINT("Successful read of message with %d b compressed\n", hpb->bits_len);
@@ -117,7 +129,7 @@ hblock_t *streamreader( int fd) {
 
 	/* Create Huffman tree */
 
-	free( hpb);
+	hpb__free_unpacked( hpb, NULL);
 	free( buffer);
 
 	hblock_set_state( block, ZDATA_READY);
@@ -497,6 +509,11 @@ int hblock_compress( hblock_t *block) {
  * @return zero on success 
  */
 int hblock_decompress( hblock_t *block) {
+
+	block->raw = malloc(BUFFERSIZE);
+	block->raw_size = BUFFERSIZE;
+
+	memset( block->raw, 0, BUFFERSIZE);
 
 	return 0;
 }
