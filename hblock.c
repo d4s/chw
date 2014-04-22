@@ -510,10 +510,25 @@ int hblock_compress( hblock_t *block) {
  */
 int hblock_decompress( hblock_t *block) {
 
-	block->raw = malloc(BUFFERSIZE);
-	block->raw_size = BUFFERSIZE;
 
-	memset( block->raw, 0, BUFFERSIZE);
+	hnode_t **masktable;
+
+	uint8_t *buffer;
+
+	assert( block != NULL);
+
+	masktable = malloc( DICTSIZE * DICTSIZE);
+	assert( masktable != NULL);
+	memset( masktable, 0, DICTSIZE*DICTSIZE);
+
+	buffer = malloc(BUFFERSIZE);
+	assert( buffer != NULL);
+
+	block->raw = buffer;
+
+	/* Create masked table here */
+
+	free( masktable);
 
 	return 0;
 }
