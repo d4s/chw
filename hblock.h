@@ -41,7 +41,8 @@ struct hblock {
 	uint32_t  raw_size; /**< Raw data size in bytes */
 	uint8_t   * zdata; /**< Compressed data with Huffman's algorithm */
 	uint32_t  zdata_size; /**< Compressed data size in bits */
-	hnode_t *head; /**< Pointer to head of Huffman tree */ 
+	hnode_t *head; /**< Pointer to head of Huffman tree */
+	hnode_t **dictionary; /**< Need for speedup serialization (direct pointers to nodes in tree) */
 };
 
 typedef struct hblock hblock_t;

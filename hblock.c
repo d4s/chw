@@ -139,7 +139,70 @@ hpb_t * streamreader ( int fd, uint8_t *buffer, size_t buffer_size) {
  */
 size_t streamwriter ( int fd, hblock_t *block) {
 
-	return 0;
+	hpb_t msg = HPB__INIT;
+
+	uint32_t tablesize=0;
+
+	uint32_t symbols_table[DICTSIZE];
+	uint32_t lengths_table[DICTSIZE];
+	uint32_t codes_table[DICTSIZE];
+
+	assert( block != NULL);
+	assert( block->zdata != NULL);
+	assert( block->dictionary != NULL);
+
+	uint32_t zdata_len = block->zdata_size%8?(1+block->zdata_size/8):(block->zdata_size/8);
+	hnode_t **dictionary = block->dictionary;
+
+	msg.symbols_table = symbols_table;
+	msg.lengths_table = lengths_table;
+	msg.codes_table = codes_table;
+
+	/* Fill tables */
+	for(int cnt=0; cnt<DICTSIZE; cnt++) {
+		if (dictionary[cnt] == NULL)
+			continue; /* just skip this node */
+
+		symbols_table[tablesize] = dictionary[cnt]->code;
+		lengths_table[tablesize] = dictionary[cnt]->blen;
+		codes_table[tablesize]   = dictionary[cnt]->bits; 
+
+		tablesize++;
+	}
+
+	/* Add sizes */
+	msg.bits_len = block->zdata_size;
+	msg.n_symbols_table = tablesize;
+	msg.n_lengths_table = tablesize;
+	msg.n_codes_table = tablesize;
+
+	msg.payload.data = block->zdata;
+	msg.payload.len  = zdata_len;
+
+	/** pack start  */
+
+	int msglen = hpb__get_packed_size (&msg);
+	uint8_t *msgbuf = malloc (msglen);
+	hpb__pack (&msg, msgbuf);
+
+	DBGPRINT("Data packed to %d bytes\n", msglen);
+
+	/* Use network byte order to save in stream */
+	uint32_t msglen_n = htonl( (uint32_t) msglen);
+
+	int rc;
+	/* write size of message in networkk byte order */
+	rc = write ( STDOUT_FILENO, &msglen_n, sizeof(uint32_t));
+	assert( rc == sizeof(uint32_t));
+	/* write body */
+	rc = write ( STDOUT_FILENO, msgbuf, msglen);
+	assert( rc == msglen);
+
+	//hpb__free_unpacked( &msg, NULL);
+	/** pack end */
+	free(msgbuf);
+
+	return (msglen + sizeof(uint32_t));
 }
 
 
@@ -221,6 +284,9 @@ void hblock_destroy( hblock_t *block) {
 		if (block->head != NULL)
 			htree_destroy( block->head);
 
+		if (block->dictionary != NULL)
+			free( block->dictionary);
+
 		free( block);
 }
 
@@ -234,7 +300,7 @@ void hblock_destroy( hblock_t *block) {
  */
 int hblock_compress( hblock_t *block) {
 
-	hnode_t **dictionary; // array of pointers to hnode_t elements
+	hnode_t **dictionary;
 
 	/* Frequency collector */
 	uint32_t histogram[DICTSIZE];
@@ -244,14 +310,21 @@ int hblock_compress( hblock_t *block) {
 
 	hblock_set_state( block, PROCESSING);
 
+#ifdef DEBUG
 	/* Should not happen but who cares? */
 	if (block->zdata != NULL)
 		free( block->zdata);
+
+	if (block->dictionary != NULL)
+		free( block->dictionary);
+#endif
 
 
 	/* Create memory region for dictionary */
 	dictionary = malloc( DICTSIZE * sizeof( hnode_t *));
 	assert( dictionary != NULL);
+
+	block->dictionary = dictionary;
 
 
 	/* Cleanup */
@@ -286,7 +359,6 @@ int hblock_compress( hblock_t *block) {
 
 	/* Add codes to symbols and count compressed size in bits */
 	block->zdata_size =  htree_add_codes( block->head, 0, 0);
-
 	block->zdata = malloc( block->zdata_size%8 ? (1 + block->zdata_size/8) : (block->zdata_size/8));
 	assert( block->zdata != NULL);
 
@@ -298,14 +370,19 @@ int hblock_compress( hblock_t *block) {
 	/* Comression */
 	uint32_t bits = 0; /* bits collector */
 	uint32_t maskedbits; /* align data here for byte writing */
-	int shift = 0; 
-	uint32_t zpos=0; /* position in compressed buffer */	
+	int shift = 0;
+	uint32_t zpos=0; /* position in compressed buffer */
+
+	/* Optimize a bit */
+	uint8_t *raw = block->raw;
+	uint8_t *zdata = block->zdata;
+
 	for (int cnt=0; cnt < block->raw_size; cnt++) {
-		uint8_t code = block->raw[cnt];
+		uint8_t code = raw[cnt];
 		uint32_t codebits = dictionary[code]->bits;
 		uint32_t codelen = dictionary[code]->blen;
 		
-		DBGPRINT("%d symbol %d -> code %d (%d)\n", cnt, code, codebits, codelen);
+//		DBGPRINT("%d symbol %d -> code %d (%d)\n", cnt, code, codebits, codelen);
 
 		bits <<= codelen;
 		bits |= codebits;
@@ -317,26 +394,23 @@ int hblock_compress( hblock_t *block) {
 			shift -= 8;
 
 			maskedbits >>= shift;
-			block->zdata[zpos] = (uint8_t) maskedbits;
-			DBGPRINT("%d zpos: Added byte 0x%X\n", zpos, (uint8_t) maskedbits);
+			zdata[zpos] = (uint8_t) maskedbits;
+//			DBGPRINT("%d zpos: Added byte 0x%X\n", zpos, (uint8_t) maskedbits);
 			zpos++;
 		}
 
 	}
 	/* last bits should be added too */
-	DBGPRINT("rest: shift = %d, zpos = %d, bits = 0x%X\n", 
-			shift, zpos, bits);
-
+//	DBGPRINT("rest: shift = %d, zpos = %d, bits = 0x%X\n", 
+//			shift, zpos, bits);
 	if( shift != 0) {
 		bits <<= (8-shift);
-		block->zdata[zpos] = (uint8_t) bits;
-		DBGPRINT("%d zpos: Added byte 0x%X\n", zpos, (uint8_t) bits);
+		zdata[zpos] = (uint8_t) bits;
+//		DBGPRINT("%d zpos: Added byte 0x%X\n", zpos, (uint8_t) bits);
 	}
-	/* Do not need dictionary */
-	free( dictionary);
+
 	hblock_set_state( block, READY);
 	return 0;
-
 }
 
 /**

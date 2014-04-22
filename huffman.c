@@ -76,6 +76,8 @@ int main( int argc, char **argv) {
 
 		hblock_compress( block);
 
+		streamwriter( STDOUT_FILENO, block);
+
 		hblock_destroy( block);
 	}
 	#endif // OMP
