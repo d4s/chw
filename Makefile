@@ -1,7 +1,7 @@
 
 CFLAGS += -I. -std=gnu99 -Wall -pedantic
 
-SRCS = hpb.pb-c.c htree.c pqueue.c hblock.c huffman.c
+SRCS = hpb.pb-c.c htree.c pqueue.c hblock.c parse_args.c huffman.c
 OBJS = $(patsubst %.c,%.o,$(wildcard $(SRCS))) 
 
 LIBS = -lprotobuf-c

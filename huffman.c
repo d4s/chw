@@ -7,9 +7,11 @@
 
 
 #include <huffman.h>
+#include <parse_args.h>
 #include <hblock.h>
 
 #include <time.h>
+
 
 int main( int argc, char **argv) {
 
@@ -17,7 +19,16 @@ int main( int argc, char **argv) {
 
 	int totalsymbols=0;
 
+	appmode_t mode;
 
+	parse_args( argc, argv, &mode);
+#ifdef DEBUG
+	if (mode == COMPRESSOR) {
+		DBGPRINT("Starting compressor ... \n");
+	} else if (mode == DECOMPRESSOR) {
+		DBGPRINT("Starting decompressor ... \n");
+	}
+#endif
 	buffer = malloc( BUFFERSIZE);
 	assert( buffer != NULL);
 
