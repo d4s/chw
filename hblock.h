@@ -122,6 +122,25 @@ uint32_t rawreader ( int fd, uint8_t *buffer, size_t buffer_size);
 
 
 /**
+ * @brief Write raw data to descriptor
+ *
+ * @param fd File descriptor
+ * @param block Pointer to hblock_t structure containing raw data.
+ *
+ * @return Count of written bytes.
+ */
+uint32_t rawwriter( int fd, hblock_t *block);
+
+/**
+ * @brief Prepare block from protobuf message
+ *
+ * @param fd Input stream
+ *
+ * @return New block with data or NULL on EOF or failure
+ */
+hblock_t *streamreader( int fd);
+
+/**
  * @brief Read one message from stream
  *
  * Trying to read 1 message from stream in format:
@@ -134,7 +153,7 @@ uint32_t rawreader ( int fd, uint8_t *buffer, size_t buffer_size);
  *
  * @return Pointer to unpacked message or NULL
  */
-hpb_t * streamreader ( int fd, uint8_t *buffer, size_t buffer_size);
+hpb_t * hpb_reader ( int fd, uint8_t *buffer, size_t buffer_size);
 
 
 /**

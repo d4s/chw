@@ -49,9 +49,85 @@ uint32_t rawreader ( int fd, uint8_t *buffer, size_t buffer_size) {
 		return size;
 }
 
+/**
+ * @brief Write raw data to descriptor
+ *
+ * @param fd File descriptor
+ * @param block Pointer to hblock_t structure containing raw data.
+ *
+ * @return Count of written bytes.
+ */
+uint32_t rawwriter( int fd, hblock_t *block) {
+
+	return 0;
+}
+
 
 /**
- * @brief Read one message from stream
+ * @brief Prepare block from protobuf message
+ *
+ * @param fd Input stream
+ *
+ * @return New block with data or NULL on EOF or failure
+ */
+hblock_t *streamreader( int fd) {
+
+	hblock_t *block;
+	hnode_t **dictionary;
+
+	uint8_t *buffer = malloc(HPB_MESSAGE_MAX); /**< temporary storage for data from stream */
+	assert( buffer != NULL);
+
+	hpb_t *hpb = hpb_reader( fd, buffer, HPB_MESSAGE_MAX);
+	if (hpb == NULL)
+		return NULL;
+
+	
+	DBGPRINT("Successful read of message with %d b compressed\n", hpb->bits_len);
+
+	block = hblock_create( hpb->payload.data, hpb->payload.len, ZDATA_READY);
+
+	hblock_set_state( block, PROCESSING);
+
+	/* Create dictionary */
+	/* Create memory region for dictionary */
+	dictionary = malloc( DICTSIZE * sizeof( hnode_t *));
+	assert( dictionary != NULL);
+
+	block->dictionary = dictionary;
+
+
+	/* Cleanup */
+	memset (dictionary, 0, DICTSIZE * sizeof (hnode_t *));
+
+	for (int i=0; i < hpb->n_symbols_table; i++) {
+		uint32_t cnt = hpb->symbols_table[i];
+
+		dictionary[cnt] = hnode_create( 0, cnt);
+
+		dictionary[cnt]->code = (uint8_t) cnt;
+		dictionary[cnt]->bits = hpb->codes_table[cnt];
+		dictionary[cnt]->blen = hpb->lengths_table[cnt];
+	}
+
+	/* TODO: do I need this placeholder here?*/
+	/* Create Huffman tree from collected info */
+	block->head = htree_create(dictionary, DICTSIZE);
+	assert( block->head != NULL);
+
+	/* Create Huffman tree */
+
+	free( hpb);
+	free( buffer);
+
+	hblock_set_state( block, ZDATA_READY);
+	return block;
+}
+
+
+
+/**
+ * @brief Read one protobuf message from stream
  *
  * Trying to read 1 message from stream in format:
  * uint32_t length of following message in network order
@@ -64,7 +140,7 @@ uint32_t rawreader ( int fd, uint8_t *buffer, size_t buffer_size) {
  *
  * @return Pointer to unpacked message or NULL
  */
-hpb_t * streamreader ( int fd, uint8_t *buffer, size_t buffer_size) {
+hpb_t * hpb_reader ( int fd, uint8_t *buffer, size_t buffer_size) {
 
 	hpb_t *msg;
 	static uint32_t msglen;

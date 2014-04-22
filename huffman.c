@@ -68,29 +68,52 @@ int main( int argc, char **argv) {
 		}
 	}
 	#else
-	/** Read and count symbols */
-	while (1) {
 
-		/* Read data from stream */
-		uint32_t readed = rawreader (STDIN_FILENO, buffer, BUFFERSIZE);
-		if (readed <= 0)
+	switch (mode) {
+	
+		case COMPRESSOR: /* Compress input stream */
+			while (1) {
+
+				/* Read data from stream */
+				uint32_t readed = rawreader (STDIN_FILENO, buffer, BUFFERSIZE);
+				if (readed <= 0)
+					break;
+				DBGPRINT("Read block of %d size\n", readed);
+
+				#ifdef DEBUG
+				/* probably impossible ? */
+				assert (readed <= BUFFERSIZE);
+				#endif
+
+				hblock_t *block = hblock_create( buffer, readed, RAW_READY);
+				assert (block != NULL);
+
+				hblock_compress( block);
+
+				streamwriter( STDOUT_FILENO, block);
+
+				hblock_destroy( block);
+			};
 			break;
-		DBGPRINT("Read block of %d size\n", readed);
+		
+		case DECOMPRESSOR: /* Compress input stream */
+			while (1) {
+				hblock_t *block = streamreader( STDIN_FILENO);
+				if (block == NULL)
+					break;
 
-		#ifdef DEBUG
-		/* probably impossible ? */
-		assert (readed <= BUFFERSIZE);
-		#endif
+				hblock_decompress( block);
 
-		hblock_t *block = hblock_create( buffer, readed, RAW_READY);
-		assert (block != NULL);
+				rawwriter( STDOUT_FILENO, block);
 
-		hblock_compress( block);
+				hblock_destroy( block);
+			};
+			break;
 
-		streamwriter( STDOUT_FILENO, block);
-
-		hblock_destroy( block);
+		default:
+			break;
 	}
+
 	#endif // OMP
 
 	free(buffer);

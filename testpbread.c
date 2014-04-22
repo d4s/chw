@@ -14,6 +14,9 @@ typedef struct _Hpb hpb_t;
 
 #define TABLESIZE 10
 
+
+int msgcnt=0;
+
 /**
  * @brief Read one message from stream
  *
@@ -85,6 +88,8 @@ hpb_t * streamreader ( int fd, uint8_t *buffer, size_t buffer_size) {
 	}
 		
 	/* Message parsed, hooray! */
+
+	DBGPRINT("Bits coded %d\n", msg->bits_len);
 
 
 	DBGPRINT("Successful read of message %d\n", msgcnt);
