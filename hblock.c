@@ -109,6 +109,11 @@ hblock_t *streamreader( int fd) {
 
 	block->dictionary = dictionary;
 
+	DBGPRINT(" with %d syms, %d codes, %d lengths\n", 
+			hpb->n_symbols_table, 
+			hpb->n_codes_table, 
+			hpb->n_lengths_table 
+			);
 
 	/* Cleanup */
 	memset (dictionary, 0, DICTSIZE * sizeof (hnode_t *));
@@ -116,7 +121,7 @@ hblock_t *streamreader( int fd) {
 	for (int i=0; i < hpb->n_symbols_table; i++) {
 		uint32_t cnt = hpb->symbols_table[i];
 
-		dictionary[cnt] = hnode_create( 0, cnt);
+		dictionary[cnt] = hnode_create( 0, (uint8_t) cnt);
 
 		dictionary[cnt]->code = (uint8_t) cnt;
 		dictionary[cnt]->bits = hpb->codes_table[i];
@@ -340,7 +345,6 @@ hblock_t *hblock_create( uint8_t *buffer, uint32_t size, hblock_state_t state ) 
 			break;
 		case ZDATA_READY:
 			block->zdata = data;
-			block->zdata_size = size;
 			hblock_set_state( block, ZDATA_READY);
 			break;
 		default:
@@ -478,6 +482,7 @@ int hblock_compress( hblock_t *block) {
 		bits |= codebits;
 
 		shift += codelen;
+//		DBGPRINT("Shift %d and bits 0x%X\n", shift, bits);
 
 		while (shift > 7) {
 			maskedbits = bits;
@@ -513,7 +518,8 @@ int hblock_compress( hblock_t *block) {
 int hblock_decompress( hblock_t *block) {
 
 
-	uint32_t *hashtable;
+	uint8_t *hashtable;
+	uint8_t *sizetable; //0 means have no such symbol
 	uint8_t *buffer;
 
 	uint32_t raw_size = 0;
@@ -523,11 +529,16 @@ int hblock_decompress( hblock_t *block) {
 	assert( block != NULL);
 	assert( block->dictionary != NULL);
 
-	hashtable = malloc( DICTSIZE * DICTSIZE * sizeof(uint32_t));
+	hashtable = malloc( DICTSIZE * DICTSIZE * sizeof(uint8_t));
 	assert( hashtable != NULL);
-	memset( hashtable, 0, DICTSIZE * DICTSIZE * sizeof(uint32_t));
+	memset( hashtable, 0, DICTSIZE * DICTSIZE * sizeof(uint8_t));
 
-	/* Best compression ration is 1/8 */
+	sizetable = malloc( DICTSIZE * DICTSIZE * sizeof(uint8_t));
+	assert( sizetable != NULL);
+	memset( sizetable, 0, DICTSIZE * DICTSIZE * sizeof(uint8_t));
+
+
+	/* Best compression ratio is 1/8 */
 	block->raw = malloc(block->zdata_size * 8);
 	buffer = block->raw;
 	assert( buffer != NULL);
@@ -537,23 +548,27 @@ int hblock_decompress( hblock_t *block) {
 	/* Create masked table here */
 
 	for (uint32_t i=0; i<DICTSIZE; i++) {
-		uint32_t hash = ~0;
 		if (dictionary[i] != NULL) {
-			hash <<= dictionary[i]->blen;
+			uint32_t hash = ~0;
+
+			hash <<= (dictionary[i]->blen)+1;
 			hash |= dictionary[i]->bits;
 			hash &= 0xFFFF; /* Depends of address length */
-//			DBGPRINT("hash %i with size %d (0x%X) = 0x%X\n", i, dictionary[i]->blen, dictionary[i]->bits,  hash);
-			hashtable[hash] = i | 0xFF00; /* dictionary[i]->code */
+			hashtable[hash] = i; /* dictionary[i]->code */
+			sizetable[hash] = (uint8_t) dictionary[i]->blen;
+//			DBGPRINT("hash 0x%X with size %d (0x%X) = 0x%X\n", hash, sizetable[hash], dictionary[i]->bits, hashtable[hash]);
+//			DBGPRINT("0x%X symbol 0x%X -> code %d (%d)\n", hash, hashtable[hash], dictionary[i]->bits, sizetable[hash]);
 		}
-	}
 
+	}
 
 	uint32_t zdata_size = block->zdata_size;
 	uint32_t zdata_cnt=0;
 	uint32_t zdata_len = zdata_size%8?(1+zdata_size/8):(zdata_size/8);
 	uint8_t *zdata = block->zdata;
 
-	int shift = 0;
+	int bshift = 0; /**< shift in bits word */
+	int shift = 0; /**< shift of current compressed symbol */
 	uint8_t zcurrent;
 
 	uint32_t bits = 0;
@@ -561,38 +576,48 @@ int hblock_decompress( hblock_t *block) {
 
 	for( int i=0; i<zdata_len; i++) {
 		zcurrent = zdata[i];
-//		DBGPRINT("Num %d from %d = 0x%X\n", i, zdata_len, zcurrent);
-
 		bits |= (uint32_t) zcurrent;
 
-		shift=0;
-		while (1) {
-			if (zdata_cnt >= zdata_size)
-				break;
+//		DBGPRINT("Num %d from %d = 0x%X -> bits = 0x%X\n", i, zdata_len, zcurrent, bits);
+
+		bshift=0;
+		do {
 
 		   	bits <<= 1;
 			mask <<= 1;
+			bshift++;
 			shift++;
 
 			uint32_t hash = bits;
+			uint32_t bmask = ~mask;
+			
+//			bmask >>= (sizeof(uint32_t) - bshift);
 
 			hash >>= 8;
-			hash |=	mask;
+			hash &= bmask; // strip before
+			bmask = mask<<1;
+			hash |=	bmask;
 			hash &= 0xFFFF;
 
-//			DBGPRINT("hash 0x%X (0x%X) = 0x%X\n", hash, bits, hashtable[hash]);
+//			DBGPRINT("bits 0x%X -> hash 0x%X (%d of %d) = 0x%X (%d)\n", bits, hash, bshift, shift, hashtable[hash], sizetable[hash]);
 
-			if (hashtable[hash] >= DICTSIZE) {
-				buffer[raw_size] = (uint8_t) hashtable[hash];
-//				DBGPRINT("Hit hash 0x%X = 0x%X -> 0x%X\n", hash, hashtable[hash], buffer[raw_size]);
-				raw_size++;			
-				mask = ~0;
-			}
-			
 			zdata_cnt++;
-			if( shift > 7)
+
+//			DBGPRINT("hash 0x%X = 0x%X(%d) with size %d -> 0x%X (%d)\n", hash, hashtable[hash], zdata_cnt, shift,  buffer[raw_size], raw_size);
+			if ( sizetable[hash] == shift) {
+				buffer[raw_size] = (uint8_t) hashtable[hash];
+//				DBGPRINT("Hit hash 0x%X = 0x%X(%d) with size %d -> 0x%X (%d)\n", hash, hashtable[hash], zdata_cnt, shift,  buffer[raw_size], raw_size);
+				raw_size++;
+				mask = ~0;
+				shift = 0;
+			}
+
+
+			
+
+			if( zdata_cnt%8 == 0)
 				break;
-		}	
+		} while (zdata_cnt < zdata_size);
 	}
 
 
@@ -600,6 +625,7 @@ int hblock_decompress( hblock_t *block) {
 	block->raw_size = raw_size;
 
 	free( hashtable);
+	free( sizetable);
 
 	return 0;
 }
