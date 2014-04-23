@@ -17,8 +17,6 @@ int main( int argc, char **argv) {
 
 	uint8_t *buffer;
 
-	int totalsymbols=0;
-
 	appmode_t mode;
 
 	parse_args( argc, argv, &mode);

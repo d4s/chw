@@ -8,13 +8,13 @@ LIBS = -lprotobuf-c
 
 TESTFILE ?= test.file
 
-ifneq ($(openmp),disabled)
+ifeq ($(openmp),enabled)
 # OpenMP
 CFLAGS += -fopenmp
 LIBS += -lgomp
 endif
 
-ifeq ($(mode),release)
+ifneq ($(mode),debug)
 CFLAGS        += -O2
 else
 # Debug
