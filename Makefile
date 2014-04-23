@@ -40,8 +40,10 @@ $(OBJS): hpb.pb-c.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 
-huffman: $(OBJS)
+huffman: $(OBJS) hpb.pb-c.o
 		$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o $@ 
+
+hpb.pb-c.o: hpb.pb-c.c
 
 hpb.pb-c.c: hpb.proto
 	protoc-c --c_out=. -I=. $<
@@ -66,4 +68,4 @@ test: ctest dtest
 .PHONY: clean
 
 clean:
-		@rm -f $(OBJS) huffman
+		@rm -f $(OBJS) hpb.pb-c.[ch] huffman
