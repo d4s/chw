@@ -65,7 +65,7 @@ uint32_t rawwriter( int fd, hblock_t *block) {
 	if (block->raw == NULL)
 		return 0;
 
-	int rc = write( fd, block, block->raw_size);
+	int rc = write( fd, block->raw, block->raw_size);
 
 	DBGPRINT("Raw data %d bytes written\n", rc);
 
@@ -98,6 +98,7 @@ hblock_t *streamreader( int fd) {
 	DBGPRINT("Successful read of message with %d b compressed\n", hpb->bits_len);
 
 	block = hblock_create( hpb->payload.data, hpb->payload.len, ZDATA_READY);
+	block->zdata_size = hpb->bits_len;
 
 	hblock_set_state( block, PROCESSING);
 
@@ -118,8 +119,9 @@ hblock_t *streamreader( int fd) {
 		dictionary[cnt] = hnode_create( 0, cnt);
 
 		dictionary[cnt]->code = (uint8_t) cnt;
-		dictionary[cnt]->bits = hpb->codes_table[cnt];
-		dictionary[cnt]->blen = hpb->lengths_table[cnt];
+		dictionary[cnt]->bits = hpb->codes_table[i];
+		dictionary[cnt]->blen = hpb->lengths_table[i];
+
 	}
 
 	/* TODO: do I need this placeholder here?*/
@@ -511,24 +513,93 @@ int hblock_compress( hblock_t *block) {
 int hblock_decompress( hblock_t *block) {
 
 
-	hnode_t **masktable;
-
+	uint32_t *hashtable;
 	uint8_t *buffer;
 
+	uint32_t raw_size = 0;
+
+	hnode_t **dictionary;
+
 	assert( block != NULL);
+	assert( block->dictionary != NULL);
 
-	masktable = malloc( DICTSIZE * DICTSIZE);
-	assert( masktable != NULL);
-	memset( masktable, 0, DICTSIZE*DICTSIZE);
+	hashtable = malloc( DICTSIZE * DICTSIZE * sizeof(uint32_t));
+	assert( hashtable != NULL);
+	memset( hashtable, 0, DICTSIZE * DICTSIZE * sizeof(uint32_t));
 
-	buffer = malloc(BUFFERSIZE);
+	/* Best compression ration is 1/8 */
+	block->raw = malloc(block->zdata_size * 8);
+	buffer = block->raw;
 	assert( buffer != NULL);
 
-	block->raw = buffer;
+	dictionary = block->dictionary;
 
 	/* Create masked table here */
 
-	free( masktable);
+	for (uint32_t i=0; i<DICTSIZE; i++) {
+		uint32_t hash = ~0;
+		if (dictionary[i] != NULL) {
+			hash <<= dictionary[i]->blen;
+			hash |= dictionary[i]->bits;
+			hash &= 0xFFFF; /* Depends of address length */
+//			DBGPRINT("hash %i with size %d (0x%X) = 0x%X\n", i, dictionary[i]->blen, dictionary[i]->bits,  hash);
+			hashtable[hash] = i | 0xFF00; /* dictionary[i]->code */
+		}
+	}
+
+
+	uint32_t zdata_size = block->zdata_size;
+	uint32_t zdata_cnt=0;
+	uint32_t zdata_len = zdata_size%8?(1+zdata_size/8):(zdata_size/8);
+	uint8_t *zdata = block->zdata;
+
+	int shift = 0;
+	uint8_t zcurrent;
+
+	uint32_t bits = 0;
+	uint32_t mask = ~0;
+
+	for( int i=0; i<zdata_len; i++) {
+		zcurrent = zdata[i];
+//		DBGPRINT("Num %d from %d = 0x%X\n", i, zdata_len, zcurrent);
+
+		bits |= (uint32_t) zcurrent;
+
+		shift=0;
+		while (1) {
+			if (zdata_cnt >= zdata_size)
+				break;
+
+		   	bits <<= 1;
+			mask <<= 1;
+			shift++;
+
+			uint32_t hash = bits;
+
+			hash >>= 8;
+			hash |=	mask;
+			hash &= 0xFFFF;
+
+//			DBGPRINT("hash 0x%X (0x%X) = 0x%X\n", hash, bits, hashtable[hash]);
+
+			if (hashtable[hash] >= DICTSIZE) {
+				buffer[raw_size] = (uint8_t) hashtable[hash];
+//				DBGPRINT("Hit hash 0x%X = 0x%X -> 0x%X\n", hash, hashtable[hash], buffer[raw_size]);
+				raw_size++;			
+				mask = ~0;
+			}
+			
+			zdata_cnt++;
+			if( shift > 7)
+				break;
+		}	
+	}
+
+
+
+	block->raw_size = raw_size;
+
+	free( hashtable);
 
 	return 0;
 }
