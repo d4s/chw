@@ -9,6 +9,7 @@
 #include <huffman.h>
 #include <parse_args.h>
 #include <hblock.h>
+#include <fqueue.h>
 
 #include <time.h>
 
@@ -30,13 +31,18 @@ int main( int argc, char **argv) {
 		DBGPRINT("Starting decompressor ... \n");
 	}
 #endif
-	buffer = malloc( BUFFERSIZE);
-	assert( buffer != NULL);
 
-	#ifdef _OPENMP
+#ifdef _OPENMP
+	fqhdr_t *fqueue;
+	fqueue = malloc( sizeof(fqhdr_t));
+	assert( fqueue != NULL);
 
-	int np=1;
-	int myid=0;
+	memset( fqueue, 0, sizeof(fqhdr_t));
+
+	int np=1; /**< Threads count */
+	int myid=0; /**< ID of current thread */
+
+	uint32_t cnt = 0;
 
 	#pragma omp parallel
 	np = omp_get_num_threads();
@@ -46,7 +52,11 @@ int main( int argc, char **argv) {
 	omp_set_dynamic(0);
 	omp_set_num_threads( np);
 
-	#pragma omp parallel private (np, myid)
+	pstate_t program_state = WORKING;
+
+	uint32_t workers_cnt = 0;
+
+	#pragma omp parallel private (np, myid, cnt) shared (fqueue, program_state, workers_cnt)
 	{
 		np = omp_get_num_threads();
 		myid = omp_get_thread_num();
@@ -54,25 +64,186 @@ int main( int argc, char **argv) {
 			fprintf( stderr, "At least 3 threads needed. Please use non-parallel version instead.\n");
 			exit (1);
 		}
-			
-		switch (myid) {
-			case 0: /* stream reader */
-				DBGPRINT( "My thread is %d and I am reader\n", myid);
-				break;
-			case 1: /* stream writer */
-				DBGPRINT( "My thread is %d and I am writer\n", myid);
-				break;
-			default: /* worker */
-				DBGPRINT( "My thread is %d and I am worker\n", myid);
+		/* Get a chance to init all threads prior real work started */
+		#pragma omp barrier
+		switch (mode) {
+			case COMPRESSOR:
+				switch (myid) {
+					case 0: /* stream reader */
+						DBGPRINT( "My thread is %d and I am reader\n", myid);
+
+						while (1) {
+						/* Read data from stream */
+//					#pragma omp critical	
+							buffer = malloc( BUFFERSIZE);
+							assert( buffer != NULL);
+
+							uint32_t readed = rawreader (STDIN_FILENO, buffer, BUFFERSIZE);
+							if (readed <= 0) {
+
+								#pragma omp atomic write
+								program_state = PENDING;
+								break;
+							}
+							DBGPRINT("Read block of %d size\n", readed);
+
+#ifdef DEBUG
+							/* probably impossible ? */
+							assert (readed <= BUFFERSIZE);
+#endif
+
+							hblock_t *block = hblock_create( buffer, readed, RAW_READY);
+							assert (block != NULL);
+
+							fqueue_push_node( fqueue, block); 
+						}
+						break;
+					case 1: /* stream writer */
+						DBGPRINT( "My thread is %d and I am writer\n", myid);
+
+						cnt = 0;
+						while (1) {
+
+							hblock_t *block = fqueue_pop_node( fqueue);
+							if (block != NULL) {
+								DBGPRINT( "Thread %d: pop READY block\n", myid);
+								streamwriter( STDOUT_FILENO, block);
+								hblock_destroy( block);
+							} else {
+
+								pstate_t local_program_state;
+								#pragma omp atomic read
+								local_program_state = program_state;
+
+								if ( local_program_state == FINISHED && workers_cnt <= 0) {
+									break;
+								}
+								DBGPRINT( "Thread %d: iteration %d: READY not found\n", myid, cnt);
+								#pragma omp taskyield
+							}
+							cnt++;
+
+						}
+						break;
+					default: /* worker */
+						DBGPRINT( "My thread is %d and I am worker\n", myid);
+
+						#pragma omp atomic update
+						workers_cnt += 1;
+
+						cnt=0;
+						while (1) {
+
+							hblock_t *block = fqueue_get_next_node( fqueue, RAW_READY);
+							if (block != NULL) {
+								DBGPRINT( "Thread %d: found RAW_READY block\n", myid);
+								hblock_compress( block);
+							} else {
+								pstate_t local_program_state;
+								#pragma omp atomic read
+								local_program_state = program_state;
+
+								if ( local_program_state != WORKING) {
+									#pragma omp atomic write
+									program_state = FINISHED;
+									#pragma omp atomic update
+									workers_cnt -= 1;
+									break;
+								}
+								DBGPRINT( "Thread %d: iteration %d: RAW_READY not found\n", myid, cnt);
+								#pragma omp taskyield
+							}
+							cnt++;
+						}
+						break;
+
+				};
 				break;
 
-		}
-	}
-	#else
+			case DECOMPRESSOR:
+				switch (myid) {
+					case 0: /* stream reader */
+						DBGPRINT( "My thread is %d and I am reader\n", myid);
+
+						while (1) {
+						/* Read data from stream */
+//					#pragma omp critical	
+							buffer = malloc( HPB_MESSAGE_MAX);
+							assert( buffer != NULL);
+
+							uint32_t readed = rawreader (STDIN_FILENO, buffer, HPB_MESSAGE_MAX);
+							if (readed <= 0) {
+								program_state = PENDING;
+								break;
+							}
+							DBGPRINT("Read block of %d size\n", readed);
+
+#ifdef DEBUG
+							/* probably impossible ? */
+							assert (readed <= BUFFERSIZE);
+#endif
+
+							hblock_t *block = hblock_create( buffer, readed, RAW_READY);
+							assert (block != NULL);
+
+							fqueue_push_node( fqueue, block); 
+						}
+						break;
+					case 1: /* stream writer */
+						DBGPRINT( "My thread is %d and I am writer\n", myid);
+
+						cnt = 0;
+						while (1) {
+
+							hblock_t *block = fqueue_pop_node( fqueue);
+							if (block != NULL) {
+								DBGPRINT( "Thread %d: pop READY block\n", myid);
+								streamwriter( STDOUT_FILENO, block);
+								hblock_destroy( block);
+							} else {
+								if ( program_state == FINISHED) {
+									break;
+								}
+#pragma omp taskyield
+								DBGPRINT( "Thread %d: iteration %d: READY not found\n", myid, cnt);
+							}
+							cnt++;
+
+						}
+						break;
+					default: /* worker */
+						DBGPRINT( "My thread is %d and I am worker\n", myid);
+
+						cnt=0;
+						while (1) {
+
+							hblock_t *block = fqueue_get_next_node( fqueue, RAW_READY);
+							if (block != NULL) {
+								DBGPRINT( "Thread %d: found RAW_READY block\n", myid);
+								hblock_compress( block);
+							} else {
+								if ( program_state == PENDING) {
+									program_state = FINISHED;
+									break;
+								}
+#pragma omp taskyield
+								DBGPRINT( "Thread %d: iteration %d: RAW_READY not found\n", myid, cnt);
+							}
+							cnt++;
+						}
+						break;
+
+				}
+		} // mode
+	} // #pragma
+#else
 
 	switch (mode) {
 	
 		case COMPRESSOR: /* Compress input stream */
+			buffer = malloc( BUFFERSIZE);
+			assert( buffer != NULL);
+
 			while (1) {
 
 				/* Read data from stream */
@@ -100,10 +271,20 @@ int main( int argc, char **argv) {
 			break;
 		
 		case DECOMPRESSOR: /* Compress input stream */
+			buffer = malloc( HPB_MESSAGE_MAX);
+			assert( buffer != NULL);
+
 			while (1) {
-				hblock_t *block = streamreader( fd_input);
-				if (block == NULL)
+				hpb_t *hpb = hpb_reader( fd_input, buffer, HPB_MESSAGE_MAX);
+				if (hpb == NULL) {
 					break;
+				}
+
+				DBGPRINT("Successful read of message with %d b compressed\n", hpb->bits_len);
+
+
+				
+				hblock_t *block = streamreader( STDIN_FILENO);
 
 				hblock_decompress( block);
 
@@ -117,7 +298,12 @@ int main( int argc, char **argv) {
 			break;
 	}
 
-	#endif // OMP
+#endif // OMP
+
+
+#ifdef _OPENMP
+	free(fqueue);
+#endif
 
 
 	close( fd_input);

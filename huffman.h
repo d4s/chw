@@ -38,5 +38,17 @@
 #define FUNC_LEAVE(...)
 #endif
 
+
+/**
+ * @brief Program state.
+ */
+enum pstate {
+	WORKING,
+	PENDING, 
+	FINISHED
+};
+
+typedef enum pstate pstate_t;
+
 #endif
 

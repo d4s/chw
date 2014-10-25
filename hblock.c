@@ -10,6 +10,11 @@
 #include <hblock.h>
 #include <netinet/in.h>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+
 /**
  * @brief Read raw data
  *
@@ -704,6 +709,7 @@ hblock_state_t hblock_set_state( hblock_t *block, hblock_state_t state) {
 	assert( block != NULL);
 
 	/* TODO: add openmp  */
+#pragma omp atomic write
 	block->state = state;
 
 	return block->state;

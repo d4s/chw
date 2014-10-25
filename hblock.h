@@ -7,6 +7,9 @@
  *
  */
 
+#ifndef HBLOCK_H
+#define HBLOCK_H
+
 #include <huffman.h>
 #include <htree.h>
 
@@ -172,5 +175,5 @@ hpb_t * hpb_reader ( int fd, uint8_t *buffer, size_t buffer_size);
  */
 size_t streamwriter ( int fd, hblock_t *block);
 
-
+#endif
 

@@ -1,7 +1,7 @@
 
 CFLAGS += -I. -std=gnu99 -Wall -pedantic
 
-SRCS = hpb.pb-c.c htree.c pqueue.c hblock.c parse_args.c huffman.c
+SRCS = hpb.pb-c.c htree.c pqueue.c hblock.c fqueue.c parse_args.c huffman.c
 OBJS = $(patsubst %.c,%.o,$(wildcard $(SRCS))) 
 
 LIBS = -lprotobuf-c
@@ -10,13 +10,13 @@ TESTFILE ?= test.file
 
 TESTS ?= 3
 
-ifeq ($(openmp),enabled)
+ifneq ($(openmp),disabled)
 # OpenMP
 CFLAGS += -fopenmp
 LIBS += -lgomp
 endif
 
-ifneq ($(mode),debug)
+ifeq ($(mode),release)
 CFLAGS        += -O4
 else
 # Debug
