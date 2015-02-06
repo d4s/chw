@@ -31,8 +31,12 @@
 #define DBGPRINT(...) \
 	{ fprintf(stderr, "%s:%d %s(): ", __FILE__, __LINE__, __func__ ); \
 	  fprintf(stderr, __VA_ARGS__); }
+#define FUNC_ENTER(...) DBGPRINT("Enter\n");
+#define FUNC_LEAVE(...) DBGPRINT("Leave\n");
 #else
 #define DBGPRINT(...)
+#define FUNC_ENTER(...)
+#define FUNC_LEAVE(...)
 #endif
 
 #endif

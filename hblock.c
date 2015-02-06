@@ -517,6 +517,7 @@ int hblock_compress( hblock_t *block) {
  */
 int hblock_decompress( hblock_t *block) {
 
+	FUNC_ENTER();
 
 	uint8_t *hashtable;
 	uint8_t *sizetable; //0 means have no such symbol
@@ -529,13 +530,13 @@ int hblock_decompress( hblock_t *block) {
 	assert( block != NULL);
 	assert( block->dictionary != NULL);
 
-	hashtable = malloc( HASHMASK * sizeof(uint32_t));
+	hashtable = malloc( BUFFERSIZE * sizeof(uint32_t));
 	assert( hashtable != NULL);
-	memset( hashtable, 0, HASHMASK * sizeof(uint32_t));
+	memset( hashtable, 0, BUFFERSIZE * sizeof(uint32_t));
 
-	sizetable = malloc( HASHMASK * sizeof(uint32_t));
+	sizetable = malloc( BUFFERSIZE * sizeof(uint32_t));
 	assert( sizetable != NULL);
-	memset( sizetable, 0, HASHMASK * sizeof(uint32_t));
+	memset( sizetable, 0, BUFFERSIZE * sizeof(uint32_t));
 
 
 	/* Best compression ratio is 1/8 */
@@ -626,6 +627,8 @@ int hblock_decompress( hblock_t *block) {
 
 	free( hashtable);
 	free( sizetable);
+
+	FUNC_LEAVE();
 
 	return 0;
 }
