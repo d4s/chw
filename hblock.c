@@ -529,13 +529,13 @@ int hblock_decompress( hblock_t *block) {
 	assert( block != NULL);
 	assert( block->dictionary != NULL);
 
-	hashtable = malloc( DICTSIZE * DICTSIZE * sizeof(uint8_t));
+	hashtable = malloc( HASHMASK * sizeof(uint32_t));
 	assert( hashtable != NULL);
-	memset( hashtable, 0, DICTSIZE * DICTSIZE * sizeof(uint8_t));
+	memset( hashtable, 0, HASHMASK * sizeof(uint32_t));
 
-	sizetable = malloc( DICTSIZE * DICTSIZE * sizeof(uint8_t));
+	sizetable = malloc( HASHMASK * sizeof(uint32_t));
 	assert( sizetable != NULL);
-	memset( sizetable, 0, DICTSIZE * DICTSIZE * sizeof(uint8_t));
+	memset( sizetable, 0, HASHMASK * sizeof(uint32_t));
 
 
 	/* Best compression ratio is 1/8 */
@@ -553,7 +553,7 @@ int hblock_decompress( hblock_t *block) {
 
 			hash <<= (dictionary[i]->blen)+1;
 			hash |= dictionary[i]->bits;
-			hash &= 0xFFFF; /* Depends of address length */
+			hash &= HASHMASK; /* Depends of address length */
 			hashtable[hash] = i; /* dictionary[i]->code */
 			sizetable[hash] = (uint8_t) dictionary[i]->blen;
 //			DBGPRINT("hash 0x%X with size %d (0x%X) = 0x%X\n", hash, sizetable[hash], dictionary[i]->bits, hashtable[hash]);
@@ -597,7 +597,7 @@ int hblock_decompress( hblock_t *block) {
 			hash &= bmask; // strip before
 			bmask = mask<<1;
 			hash |=	bmask;
-			hash &= 0xFFFF;
+			hash &= HASHMASK;
 
 //			DBGPRINT("bits 0x%X -> hash 0x%X (%d of %d) = 0x%X (%d)\n", bits, hash, bshift, shift, hashtable[hash], sizetable[hash]);
 

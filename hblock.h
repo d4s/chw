@@ -10,6 +10,12 @@
 #include <huffman.h>
 #include <htree.h>
 
+/**
+ * In worst cases depth of tree could be up to Logarithm base 2 from BUFFERSIZE
+ * 
+ * TODO: For now it is hardcoded but could be calculated for size optimization
+ */
+#define HASHMASK BUFFERSIZE-1 
 
 /**
  * @brief States of block processing
