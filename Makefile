@@ -48,24 +48,30 @@ hpb.pb-c.o: hpb.pb-c.c
 hpb.pb-c.c: hpb.proto
 	protoc-c --c_out=. -I=. $<
 
-.PHONY: test ctest dtest
-ctest:
-	echo Compression:
+.PHONY: test ctest dtest udata
+udata: gen_unbalanced_data
+	@echo Create unbalanced data
+	./gen_unbalanced_data > $(TESTFILE)
+
+
+ctest: udata
+	@echo Compression:
 	time ./huffman < $(TESTFILE) > $(TESTFILE).hz
 
 dtest:
-	echo Decompression:
+	@echo Decompression:
 	time ./huffman -d < $(TESTFILE).hz >$(TESTFILE).new
+
 
 test: ctest dtest
 	md5sum $(TESTFILE) $(TESTFILE).new
 
-	echo Compression with output to /dev/null:
+	@echo Compression with output to /dev/null:
 	time ./huffman < $(TESTFILE) > /dev/null
-	echo Decompression with output to /dev/null:
+	@echo Decompression with output to /dev/null:
 	time ./huffman -d < $(TESTFILE).hz > /dev/null
 
 .PHONY: clean
 
 clean:
-		@rm -f $(OBJS) hpb.pb-c.[ch] huffman
+		@rm -f $(OBJS) hpb.pb-c.[ch] huffman gen_unbalanced_data
