@@ -14,7 +14,7 @@ int main(void) {
 
 	long long freq=1;
 
-	for( int i='A'; i<'A'+18; i++) {
+	for( int i='A'; i<'A'+27; i++) {
 		fprintf(stderr, "i=%c,  freq=%lld\n", i, freq);
 		for( int j=0;j<freq;j++)
 		    printf("%c",i);

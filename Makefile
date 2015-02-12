@@ -8,6 +8,8 @@ LIBS = -lprotobuf-c
 
 TESTFILE ?= test.file
 
+TESTS ?= 3
+
 ifeq ($(openmp),enabled)
 # OpenMP
 CFLAGS += -fopenmp
@@ -15,7 +17,7 @@ LIBS += -lgomp
 endif
 
 ifneq ($(mode),debug)
-CFLAGS        += -O2
+CFLAGS        += -O4
 else
 # Debug
 CFLAGS        += -DDEBUG -g -O0
@@ -48,30 +50,31 @@ hpb.pb-c.o: hpb.pb-c.c
 hpb.pb-c.c: hpb.proto
 	protoc-c --c_out=. -I=. $<
 
-.PHONY: test ctest dtest udata
+.PHONY: test ctest dtest
 udata: gen_unbalanced_data
 	@echo Create unbalanced data
 	./gen_unbalanced_data > $(TESTFILE)
 
+$(TESTFILE): udata
 
-ctest: udata
+ctest:
 	@echo Compression:
 	time ./huffman < $(TESTFILE) > $(TESTFILE).hz
+	@ls -l $(TESTFILE) $(TESTFILE).hz
+	@echo Triple compression test with null output: 
+	@for((i=0;i<$(TESTS);i++)); do time -f "Pass: $$i %U" ./huffman <$(TESTFILE) >/dev/null; done
 
 dtest:
 	@echo Decompression:
 	time ./huffman -d < $(TESTFILE).hz >$(TESTFILE).new
-
+	@echo Triple decompression test with null output: 
+	@for((i=0;i<$(TESTS);i++)); do time -f "Pass: $$i %U" ./huffman -d <$(TESTFILE).hz >/dev/null; done
 
 test: ctest dtest
-	md5sum $(TESTFILE) $(TESTFILE).new
-
-	@echo Compression with output to /dev/null:
-	time ./huffman < $(TESTFILE) > /dev/null
-	@echo Decompression with output to /dev/null:
-	time ./huffman -d < $(TESTFILE).hz > /dev/null
+	@echo Checking if original and decompressed files are the same:
+	@md5sum $(TESTFILE) $(TESTFILE).new
 
 .PHONY: clean
 
 clean:
-		@rm -f $(OBJS) hpb.pb-c.[ch] huffman gen_unbalanced_data
+		@rm -f $(OBJS) hpb.pb-c.[ch] huffman gen_unbalanced_data $(TESTFILE) $(TESTFILE).hz $(TESTFILE).new
