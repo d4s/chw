@@ -19,6 +19,8 @@ enum appmode {
 
 typedef enum appmode appmode_t;
 
+extern int fd_input, fd_output;
+
 /**
  * @brief Parse command line arguments
  *

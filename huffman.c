@@ -12,6 +12,9 @@
 
 #include <time.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 int main( int argc, char **argv) {
 
@@ -73,10 +76,12 @@ int main( int argc, char **argv) {
 			while (1) {
 
 				/* Read data from stream */
-				uint32_t readed = rawreader (STDIN_FILENO, buffer, BUFFERSIZE);
+				uint32_t readed = rawreader (fd_input, buffer, BUFFERSIZE);
+
+				DBGPRINT("Read block of %d size\n", readed);
+
 				if (readed <= 0)
 					break;
-				DBGPRINT("Read block of %d size\n", readed);
 
 				#ifdef DEBUG
 				/* probably impossible ? */
@@ -88,7 +93,7 @@ int main( int argc, char **argv) {
 
 				hblock_compress( block);
 
-				streamwriter( STDOUT_FILENO, block);
+				streamwriter( fd_output, block);
 
 				hblock_destroy( block);
 			};
@@ -96,13 +101,13 @@ int main( int argc, char **argv) {
 		
 		case DECOMPRESSOR: /* Compress input stream */
 			while (1) {
-				hblock_t *block = streamreader( STDIN_FILENO);
+				hblock_t *block = streamreader( fd_input);
 				if (block == NULL)
 					break;
 
 				hblock_decompress( block);
 
-				rawwriter( STDOUT_FILENO, block);
+				rawwriter( fd_output, block);
 
 				hblock_destroy( block);
 			};
@@ -113,6 +118,10 @@ int main( int argc, char **argv) {
 	}
 
 	#endif // OMP
+
+
+	close( fd_input);
+	close( fd_output);
 
 	free(buffer);
 	return 0;

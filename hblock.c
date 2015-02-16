@@ -24,29 +24,33 @@
  */
 uint32_t rawreader ( int fd, uint8_t *buffer, size_t buffer_size) {
 	
-		ssize_t readed;
+	FUNC_ENTER();
 
-		uint32_t size = 0;
+	ssize_t readed;
 
-		assert( buffer != NULL);
-		assert( buffer_size >= 0);
+	uint32_t size = 0;
 
-		while (1) {
-			readed = read (STDIN_FILENO, buffer+size, buffer_size - size);
-			if (readed <= 0)
-				break;
+	assert( buffer != NULL);
+	assert( buffer_size >= 0);
 
-			size += readed;
-			if (size >= buffer_size) {
-				if (size == buffer_size) {
-					/* Buffer full */
-					return size;
-				}
-				/* something going wrong here!!! */
-				return -1;
+	while (1) {
+		readed = read ( fd, buffer+size, buffer_size - size);
+		if (readed <= 0)
+			break;
+
+		size += readed;
+		if (size >= buffer_size) {
+			if (size == buffer_size) {
+				/* Buffer full */
+				return size;
 			}
+			/* something going wrong here!!! */
+			return -1;
 		}
-		return size;
+	}
+
+	FUNC_LEAVE();
+	return size;
 }
 
 /**
@@ -59,6 +63,7 @@ uint32_t rawreader ( int fd, uint8_t *buffer, size_t buffer_size) {
  */
 uint32_t rawwriter( int fd, hblock_t *block) {
 
+	FUNC_ENTER();
 
 	assert( block != NULL);
 
@@ -68,6 +73,8 @@ uint32_t rawwriter( int fd, hblock_t *block) {
 	int rc = write( fd, block->raw, block->raw_size);
 
 	DBGPRINT("Raw data %d bytes written\n", rc);
+
+	FUNC_LEAVE();
 
 	return rc;
 }
@@ -81,6 +88,8 @@ uint32_t rawwriter( int fd, hblock_t *block) {
  * @return New block with data or NULL on EOF or failure
  */
 hblock_t *streamreader( int fd) {
+
+	FUNC_ENTER();
 
 	hblock_t *block;
 	hnode_t **dictionary;
@@ -140,6 +149,8 @@ hblock_t *streamreader( int fd) {
 	free( buffer);
 
 	hblock_set_state( block, ZDATA_READY);
+
+	FUNC_LEAVE();
 	return block;
 }
 
@@ -160,6 +171,8 @@ hblock_t *streamreader( int fd) {
  * @return Pointer to unpacked message or NULL
  */
 hpb_t * hpb_reader ( int fd, uint8_t *buffer, size_t buffer_size) {
+
+	FUNC_ENTER();
 
 	hpb_t *msg;
 	static uint32_t msglen;
@@ -221,6 +234,9 @@ hpb_t * hpb_reader ( int fd, uint8_t *buffer, size_t buffer_size) {
 
 
 	DBGPRINT("Successful read of message\n");
+
+	FUNC_LEAVE();
+
 	return msg;
 }
 
@@ -233,6 +249,8 @@ hpb_t * hpb_reader ( int fd, uint8_t *buffer, size_t buffer_size) {
  * @return Size of data written or 0 on error
  */
 size_t streamwriter ( int fd, hblock_t *block) {
+
+	FUNC_ENTER();
 
 	hpb_t msg = HPB__INIT;
 
@@ -286,16 +304,20 @@ size_t streamwriter ( int fd, hblock_t *block) {
 	uint32_t msglen_n = htonl( (uint32_t) msglen);
 
 	int rc;
-	/* write size of message in networkk byte order */
-	rc = write ( STDOUT_FILENO, &msglen_n, sizeof(uint32_t));
+	/* write size of message in network byte order */
+	rc = write ( fd, &msglen_n, sizeof(uint32_t));
+	DBGPRINT("Data written with size %d\n", rc);
+	if ( rc != sizeof(uint32_t)) perror("write failed");
 	assert( rc == sizeof(uint32_t));
 	/* write body */
-	rc = write ( STDOUT_FILENO, msgbuf, msglen);
+	rc = write ( fd, msgbuf, msglen);
 	assert( rc == msglen);
 
 	//hpb__free_unpacked( &msg, NULL);
 	/** pack end */
 	free(msgbuf);
+
+	FUNC_LEAVE();
 
 	return (msglen + sizeof(uint32_t));
 }
@@ -312,6 +334,7 @@ size_t streamwriter ( int fd, hblock_t *block) {
  */
 hblock_t *hblock_create( uint8_t *buffer, uint32_t size, hblock_state_t state ) {
 
+	FUNC_ENTER();
 	hblock_t *block;
 	uint8_t *data;
 
@@ -353,6 +376,8 @@ hblock_t *hblock_create( uint8_t *buffer, uint32_t size, hblock_state_t state ) 
 			return NULL;
 	}
 
+	FUNC_LEAVE();
+
 	return block;
 }
 
@@ -365,23 +390,27 @@ hblock_t *hblock_create( uint8_t *buffer, uint32_t size, hblock_state_t state ) 
  */
 void hblock_destroy( hblock_t *block) {
 
-		if (block == NULL)
-			return;
+	FUNC_ENTER();
 
-		hblock_set_state( block, PROCESSING);
-		if (block->raw != NULL)
-			free( block->raw);
+	if (block == NULL)
+		return;
 
-		if (block->zdata != NULL)
-			free( block->zdata);
+	hblock_set_state( block, PROCESSING);
+	if (block->raw != NULL)
+		free( block->raw);
 
-		if (block->head != NULL)
-			htree_destroy( block->head);
+	if (block->zdata != NULL)
+		free( block->zdata);
 
-		if (block->dictionary != NULL)
-			free( block->dictionary);
+	if (block->head != NULL)
+		htree_destroy( block->head);
 
-		free( block);
+	if (block->dictionary != NULL)
+		free( block->dictionary);
+
+	free( block);
+
+	FUNC_LEAVE();
 }
 
 /**
@@ -393,6 +422,8 @@ void hblock_destroy( hblock_t *block) {
  * @return zero on success 
  */
 int hblock_compress( hblock_t *block) {
+
+	FUNC_ENTER();
 
 	hnode_t **dictionary;
 
@@ -505,6 +536,8 @@ int hblock_compress( hblock_t *block) {
 	}
 
 	hblock_set_state( block, READY);
+
+	FUNC_LEAVE();
 	return 0;
 }
 
@@ -645,7 +678,11 @@ int hblock_decompress( hblock_t *block) {
  */
 hblock_state_t hblock_get_state( hblock_t *block) {
 
+	FUNC_ENTER();
+
 	assert( block != NULL);
+
+	FUNC_LEAVE();
 
 	/* TODO: add openmp  */
 	return block->state;
@@ -662,12 +699,16 @@ hblock_state_t hblock_get_state( hblock_t *block) {
  */
 hblock_state_t hblock_set_state( hblock_t *block, hblock_state_t state) {
 
+	FUNC_ENTER();
+
 	assert( block != NULL);
 
 	/* TODO: add openmp  */
 	block->state = state;
 
 	return block->state;
+
+	FUNC_LEAVE();
 }
 
 

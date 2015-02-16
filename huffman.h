@@ -21,9 +21,8 @@
 #include <omp.h>
 #endif
 
-
 #define DICTSIZE 256 /**< count of elements in dictionary */
-#define BUFFERSIZE 128*1024
+#define BUFFERSIZE 512*1024
 
 #define HPB_MESSAGE_MAX BUFFERSIZE*2 /**< to be sure we have enough space for read messages from stream */
 

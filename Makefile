@@ -59,16 +59,16 @@ $(TESTFILE): udata
 
 ctest:
 	@echo Compression:
-	time ./huffman < $(TESTFILE) > $(TESTFILE).hz
+	time ./huffman -c $(TESTFILE) $(TESTFILE).hz
 	@ls -l $(TESTFILE) $(TESTFILE).hz
 	@echo Triple compression test with null output: 
-	@for((i=0;i<$(TESTS);i++)); do time -f "Pass: $$i %U" ./huffman <$(TESTFILE) >/dev/null; done
+	@for((i=0;i<$(TESTS);i++)); do time -f "Pass: $$i %U" ./huffman -c $(TESTFILE) /dev/null; done
 
 dtest:
 	@echo Decompression:
-	time ./huffman -d < $(TESTFILE).hz >$(TESTFILE).new
+	time ./huffman -x $(TESTFILE).hz $(TESTFILE).new
 	@echo Triple decompression test with null output: 
-	@for((i=0;i<$(TESTS);i++)); do time -f "Pass: $$i %U" ./huffman -d <$(TESTFILE).hz >/dev/null; done
+	@for((i=0;i<$(TESTS);i++)); do time -f "Pass: $$i %U" ./huffman -x $(TESTFILE).hz /dev/null; done
 
 test: ctest dtest
 	@echo Checking if original and decompressed files are the same:
