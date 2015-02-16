@@ -10,11 +10,18 @@
 
 #include <stdio.h>
 
-int main(void) {
+int main(int argc, char **argv) {
 
 	long long freq=1;
+	
+	int seq = 22;
 
-	for( int i='A'; i<'A'+27; i++) {
+	/* Sorry, too lazy to check ;-) */
+	if ( argc == 2 ) {
+		seq = atoi( argv[1]);
+	}
+	
+	for( int i='A'; i<'A'+seq; i++) {
 		fprintf(stderr, "i=%c,  freq=%lld\n", i, freq);
 		for( int j=0;j<freq;j++)
 		    printf("%c",i);
