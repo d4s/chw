@@ -47,7 +47,7 @@ int main( int argc, char **argv) {
 	#pragma omp parallel
 	np = omp_get_num_threads();
 
-	np += 4; // 2 additional threads for I/O
+	np += 2; // 2 additional threads for I/O
 
 	omp_set_dynamic(0);
 	omp_set_num_threads( np);
@@ -101,11 +101,13 @@ int main( int argc, char **argv) {
 							assert (readed <= BUFFERSIZE);
 #endif
 							hblock_t *block;
+
 							block = hblock_create( buffer, readed, RAW_READY);
 							assert (block != NULL);
 
-#pragma omp critical (fq)
+//#pragma omp critical (fq)
 							fqueue_push_node( fqueue, block); 
+#pragma omp flush
 						}
 				}
 
@@ -119,7 +121,8 @@ int main( int argc, char **argv) {
 						while (1) {
 
 							hblock_t *block;
-#pragma omp critical (fq)
+//#pragma omp critical (fq)
+#pragma omp flush
 							block = fqueue_pop_node( fqueue);
 							if (block != NULL) {
 								DBGPRINT( "Writer thread %d: pop READY block\n", myid);
@@ -127,6 +130,7 @@ int main( int argc, char **argv) {
 								hblock_destroy( block);
 							} else {
 
+								usleep(200);
 								pstate_t local_program_state;
 								#pragma omp atomic read
 								local_program_state = program_state;
@@ -137,7 +141,6 @@ int main( int argc, char **argv) {
 									break;
 								}
 //DBGPRINT( "Thread %d: iteration %d: READY not found\n", myid, cnt);
-								#pragma omp taskyield
 							}
 							cnt++;
 
@@ -158,7 +161,8 @@ int main( int argc, char **argv) {
 						while (1) {
 
 							hblock_t *block;
-#pragma omp critical (fq) 
+//#pragma omp critical (fq)
+#pragma omp flush  
 							{
 								block = fqueue_get_next_node( fqueue, RAW_READY);
 								if ( block != NULL)
@@ -178,7 +182,7 @@ int main( int argc, char **argv) {
 									break;
 								}
 //								DBGPRINT( "Thread worker %d: iteration %d: RAW_READY not found\n", myid, cnt);
-								#pragma omp taskyield
+								usleep(200);
 							}
 							cnt++;
 						}

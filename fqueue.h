@@ -42,7 +42,7 @@ typedef struct fqhdr {
 } fqhdr_t;
 
 /* Max blocks in queue */
-#define FIFO_QUEUE_MAX_LEN 20
+#define FIFO_QUEUE_MAX_LEN 50
 
 
 /**

@@ -8,6 +8,10 @@
  */
 #include <fqueue.h>
 
+#include <stdio.h>
+
+omp_lock_t fq_add;
+int init_fq_add=0;
 
 #ifdef DEBUG
 void fqueue_print( fqhdr_t *fqhdr) {
@@ -18,8 +22,6 @@ void fqueue_print( fqhdr_t *fqhdr) {
 
 	assert( fqhdr != NULL);
 
-
-#pragma omp critical (queue)
 	{
 	node = fqhdr->head;
 	while ( node != NULL) {
@@ -88,11 +90,12 @@ uint32_t fqueue_push_node( fqhdr_t *fqhdr, hblock_t *block) {
 	node->block = block;
 	
 	while (fqhdr->fqlen >= FIFO_QUEUE_MAX_LEN) {
-		#pragma omp taskyield 
-		;
+		omp_set_lock( &fq_add);
+
+		omp_set_lock( & fq_add); // wait here while we'll have empty slot
+		omp_unset_lock( & fq_add);;
 	}
 
-#pragma omp critical (queue)
 	{
 #pragma omp atomic read
 	node->prev = fqhdr->tail;
@@ -102,7 +105,13 @@ uint32_t fqueue_push_node( fqhdr_t *fqhdr, hblock_t *block) {
 	fqhdr->fqlen += 1;
 
 	if (fqhdr->head == NULL) {
-		fqhdr->head = node; }
+		fqhdr->head = node;
+
+		if( init_fq_add == 0) {
+			init_fq_add = 1;
+			omp_init_lock( &fq_add);
+		}
+	}
 	else {
 		node->prev->next=node;
 	}
@@ -139,7 +148,6 @@ hblock_t *fqueue_pop_node( fqhdr_t *fqhdr) {
 	if (fqhdr->head == NULL)
 		return NULL;
 
-#pragma omp critical (queue)
 	{
 #pragma omp atomic read
 	node = fqhdr->head;
@@ -162,7 +170,11 @@ hblock_t *fqueue_pop_node( fqhdr_t *fqhdr) {
 		} else {
 			node->prev = NULL;
 		}
-	DBGPRINT("Node deleted. fifo length = %d\n", fqhdr->fqlen);
+	
+		if( omp_test_lock( & fq_add) == 0 ){
+			omp_unset_lock( & fq_add);
+		}
+		DBGPRINT("Node deleted. fifo length = %d\n", fqhdr->fqlen);
 	}
 	else {
 		block = NULL;
@@ -191,14 +203,12 @@ hblock_t *fqueue_get_next_node( fqhdr_t *fqhdr, hblock_state_t hblock_state) {
 
 	fqueue_print( fqhdr);
 
-#pragma omp critical (queue)
 	{
 	fqnode_t *node;
 #pragma omp atomic read
 	node = fqhdr->head;
 	
 	while (node != NULL) {
-#pragma omp atomic read
 		block = node->block;
 
 	 	if (hblock_get_state( block) == hblock_state) {
@@ -206,7 +216,6 @@ hblock_t *fqueue_get_next_node( fqhdr_t *fqhdr, hblock_state_t hblock_state) {
 			break;
 		}
 
-#pragma omp atomic read
 		node = node->next;
 		block = NULL;
 	}
