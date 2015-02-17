@@ -47,29 +47,36 @@ int main( int argc, char **argv) {
 	#pragma omp parallel
 	np = omp_get_num_threads();
 
-	np += 2; // 2 additional threads for I/O
+	np += 4; // 2 additional threads for I/O
 
 	omp_set_dynamic(0);
 	omp_set_num_threads( np);
+
+	omp_set_nested(1);
 
 	pstate_t program_state = WORKING;
 
 	uint32_t workers_cnt = 0;
 
-	#pragma omp parallel private (np, myid, cnt) shared (fqueue, program_state, workers_cnt)
 	{
+	#pragma omp parallel
 		np = omp_get_num_threads();
-		myid = omp_get_thread_num();
 		if (np<3) {
 			fprintf( stderr, "At least 3 threads needed. Please use non-parallel version instead.\n");
 			exit (1);
 		}
 		/* Get a chance to init all threads prior real work started */
-		#pragma omp barrier
 		switch (mode) {
 			case COMPRESSOR:
-				switch (myid) {
-					case 0: /* stream reader */
+
+#pragma omp parallel private (myid, cnt) shared (fqueue, program_state, workers_cnt) num_threads(3)
+#pragma omp single
+			{
+#pragma omp task private (myid, cnt) shared( fqueue, program_state, workers_cnt)
+#pragma omp parallel private (myid, cnt) shared( fqueue, program_state, workers_cnt) num_threads(1)
+				{
+					myid = omp_get_thread_num();
+					/* stream reader */
 						DBGPRINT( "My thread is %d and I am reader\n", myid);
 
 						while (1) {
@@ -81,8 +88,10 @@ int main( int argc, char **argv) {
 							uint32_t readed = rawreader (STDIN_FILENO, buffer, BUFFERSIZE);
 							if (readed <= 0) {
 
-								#pragma omp atomic write
+#pragma omp atomic write
 								program_state = PENDING;
+								
+								DBGPRINT("Set state PENDING\n");
 								break;
 							}
 							DBGPRINT("Read block of %d size\n", readed);
@@ -91,22 +100,29 @@ int main( int argc, char **argv) {
 							/* probably impossible ? */
 							assert (readed <= BUFFERSIZE);
 #endif
-
-							hblock_t *block = hblock_create( buffer, readed, RAW_READY);
+							hblock_t *block;
+							block = hblock_create( buffer, readed, RAW_READY);
 							assert (block != NULL);
 
+#pragma omp critical (fq)
 							fqueue_push_node( fqueue, block); 
 						}
-						break;
-					case 1: /* stream writer */
+				}
+
+#pragma omp task private (myid, cnt) shared( fqueue, program_state, workers_cnt)
+#pragma omp parallel private (myid, cnt) shared( fqueue, program_state, workers_cnt) num_threads(1)
+				{
+					myid = omp_get_thread_num();
 						DBGPRINT( "My thread is %d and I am writer\n", myid);
 
 						cnt = 0;
 						while (1) {
 
-							hblock_t *block = fqueue_pop_node( fqueue);
+							hblock_t *block;
+#pragma omp critical (fq)
+							block = fqueue_pop_node( fqueue);
 							if (block != NULL) {
-								DBGPRINT( "Thread %d: pop READY block\n", myid);
+								DBGPRINT( "Writer thread %d: pop READY block\n", myid);
 								streamwriter( STDOUT_FILENO, block);
 								hblock_destroy( block);
 							} else {
@@ -115,17 +131,24 @@ int main( int argc, char **argv) {
 								#pragma omp atomic read
 								local_program_state = program_state;
 
-								if ( local_program_state == FINISHED && workers_cnt <= 0) {
+
+								if ( local_program_state == FINISHED) {
+								DBGPRINT( "Thread writer %d: iteration %d: FINISHED\n", myid, cnt);
 									break;
 								}
-								DBGPRINT( "Thread %d: iteration %d: READY not found\n", myid, cnt);
+//DBGPRINT( "Thread %d: iteration %d: READY not found\n", myid, cnt);
 								#pragma omp taskyield
 							}
 							cnt++;
 
 						}
-						break;
-					default: /* worker */
+					}
+
+#pragma omp task  private (myid, cnt) shared( fqueue, program_state, workers_cnt)
+#pragma omp parallel private (myid, cnt) shared( fqueue, program_state, workers_cnt) num_threads(np-2)
+					{
+						myid = omp_get_thread_num();
+					 /* worker */
 						DBGPRINT( "My thread is %d and I am worker\n", myid);
 
 						#pragma omp atomic update
@@ -134,33 +157,43 @@ int main( int argc, char **argv) {
 						cnt=0;
 						while (1) {
 
-							hblock_t *block = fqueue_get_next_node( fqueue, RAW_READY);
+							hblock_t *block;
+#pragma omp critical (fq) 
+							{
+								block = fqueue_get_next_node( fqueue, RAW_READY);
+								if ( block != NULL)
+									hblock_set_state( block, PROCESSING);
+							}
 							if (block != NULL) {
-								DBGPRINT( "Thread %d: found RAW_READY block\n", myid);
+								DBGPRINT( "Worker thread %d: found RAW_READY block\n", myid);
 								hblock_compress( block);
 							} else {
 								pstate_t local_program_state;
 								#pragma omp atomic read
 								local_program_state = program_state;
 
-								if ( local_program_state != WORKING) {
-									#pragma omp atomic write
-									program_state = FINISHED;
+								if ( local_program_state == PENDING) {
 									#pragma omp atomic update
 									workers_cnt -= 1;
 									break;
 								}
-								DBGPRINT( "Thread %d: iteration %d: RAW_READY not found\n", myid, cnt);
+//								DBGPRINT( "Thread worker %d: iteration %d: RAW_READY not found\n", myid, cnt);
 								#pragma omp taskyield
 							}
 							cnt++;
 						}
-						break;
+#pragma omp barrier
+						DBGPRINT( "Thread worker %d: finished\n", myid);
 
-				};
+#pragma omp atomic write
+						program_state = FINISHED;
+						DBGPRINT( "Thread worker %d: set FINISHED\n", myid);
+				}
+
+			}
 				break;
-
 			case DECOMPRESSOR:
+				myid = omp_get_thread_num();
 				switch (myid) {
 					case 0: /* stream reader */
 						DBGPRINT( "My thread is %d and I am reader\n", myid);

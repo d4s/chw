@@ -11,6 +11,9 @@
 #include <huffman.h>
 #include <hblock.h>
 
+#ifdef _OPENMP
+#include <omp.h> 
+#endif
 /**
  * @brief Double linked queue node
 */
